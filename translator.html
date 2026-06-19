@@ -174,7 +174,6 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
       <div class="actions">
         <button class="btn btn-secondary btn-sm" id="selectAllBtn">Select All</button>
         <button class="btn btn-secondary btn-sm" id="deselectAllBtn">Deselect All</button>
-        <button class="btn btn-secondary btn-sm" id="copyOriginalBtn">Copy Originals</button>
         <div class="stats" id="stats"></div>
       </div>
       <div class="filter-bar" id="filterBar">
@@ -191,7 +190,6 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
         <table>
           <thead>
             <tr>
-              <th style="width:30px"><input type="checkbox" id="headerCheckbox" title="Toggle all"></th>
               <th class="sortable" data-col="key">Key <span class="sort" id="sort-key">\u25b4</span></th>
               <th class="sortable" data-col="original">Original <span class="sort" id="sort-original">\u25b4</span></th>
               <th>Translation</th>
@@ -596,7 +594,6 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     const list = sortStrings(getFiltered());
     if (!list.length) {
       tableBody.innerHTML = '<tr class="empty-state"><td colspan="5"><p>No strings match your filter</p></td></tr>';
-      updateHeaderCheckbox();
       return;
     }
     let html = '';
@@ -611,7 +608,6 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
       else status = '\u274c';
       const rowClass = (locked ? 'non-translatable' : '') + (hasErrors ? ' has-format-errors' : '');
       html += '<tr class="' + rowClass + '">';
-      html += '<td><input type="checkbox" class="row-checkbox" data-idx="' + app.strings.indexOf(s) + '"' + ((translated || locked) && !hasErrors ? ' checked' : '') + (locked ? ' disabled' : '') + '></td>';
       html += '<td class="key">' + escHtml(s.key) + (s.type === 'string-array' ? ' <span style="color:#999;font-size:10px">[]</span>' : '') + '</td>';
       html += '<td class="original">' + getOriginalHtml(s) + '</td>';
       html += '<td>' + getInputHtml(s) + '</td>';
@@ -627,11 +623,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     tableBody.querySelectorAll('.item-input').forEach(inp => {
       inp.addEventListener('input', onItemInput);
     });
-    tableBody.querySelectorAll('.row-checkbox').forEach(cb => {
-      cb.addEventListener('change', onRowCheckbox);
-    });
 
-    updateHeaderCheckbox();
     updateStats();
   }
 
@@ -684,8 +676,6 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     }
     const tr = e.target.closest('tr');
     tr.classList.toggle('has-format-errors', hasErr);
-    const cb = tr.querySelector('.row-checkbox');
-    if (cb && !cb.disabled) cb.checked = translated && !hasErr;
     const feDiv = document.getElementById('fe-' + idx);
     if (hasErr) {
       if (feDiv) feDiv.innerHTML = s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
@@ -737,39 +727,6 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     }
     updateStats();
   }
-
-  function onRowCheckbox(e) {
-    updateHeaderCheckbox();
-  }
-
-  function updateHeaderCheckbox() {
-    const cbs = tableBody.querySelectorAll('.row-checkbox:not(:disabled)');
-    const checked = tableBody.querySelectorAll('.row-checkbox:not(:disabled):checked');
-    headerCheckbox.checked = cbs.length > 0 && checked.length === cbs.length;
-    headerCheckbox.indeterminate = checked.length > 0 && checked.length < cbs.length;
-  }
-
-  headerCheckbox.addEventListener('change', () => {
-    const cbs = tableBody.querySelectorAll('.row-checkbox:not(:disabled)');
-    cbs.forEach(cb => cb.checked = headerCheckbox.checked);
-  });
-
-  document.getElementById('selectAllBtn').addEventListener('click', () => {
-    tableBody.querySelectorAll('.row-checkbox:not(:disabled)').forEach(cb => cb.checked = true);
-    updateHeaderCheckbox();
-  });
-
-  document.getElementById('deselectAllBtn').addEventListener('click', () => {
-    tableBody.querySelectorAll('.row-checkbox:not(:disabled)').forEach(cb => cb.checked = false);
-    updateHeaderCheckbox();
-  });
-
-  document.getElementById('copyOriginalBtn').addEventListener('click', () => {
-    const lines = app.strings
-      .filter(s => s.translatable)
-      .map(s => s.key + '=' + s.original);
-    navigator.clipboard.writeText(lines.join('\n')).then(() => showToast('Copied ' + lines.length + ' lines'));
-  });
 
   function updateStats() {
     const total = app.strings.length;
