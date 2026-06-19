@@ -249,6 +249,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     xmlProlog: '<?xml version="1.0" encoding="utf-8"?>',
     locales: [],
     localeNames: {},
+    importedLocale: '',
   };
 
   const tableBody = document.getElementById('tableBody');
@@ -291,6 +292,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
   }
 
   function switchTab(name) {
+    if (app._saveTimer) { clearTimeout(app._saveTimer); app._saveTimer = null; saveState(); }
     tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
     Object.keys(tabContents).forEach(k => tabContents[k].classList.toggle('hidden', k !== name));
     if (name === 'translate') renderTable();
@@ -298,6 +300,48 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
   }
 
   tabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+  // --- Local Storage Persistence ---
+  const STORAGE_KEY = 'mojolauncher_translator';
+
+  function saveState() {
+    if (!app.strings.length) return;
+    const data = {
+      locale: app.importedLocale || '',
+      strings: {},
+      stringArrays: {},
+    };
+    app.strings.forEach(s => {
+      if (s.type === 'string-array') {
+        data.stringArrays[s.key] = s.itemTranslations.slice();
+      } else if (s.translation) {
+        data.strings[s.key] = s.translation;
+      }
+    });
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    catch (_) { /* storage full or unavailable */ }
+  }
+
+  function scheduleSave() {
+    if (app._saveTimer) clearTimeout(app._saveTimer);
+    app._saveTimer = setTimeout(saveState, 400);
+  }
+
+  function loadSavedState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) { return null; }
+  }
+
+  function clearSavedState() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+  }
+
+  function hasSavedState() {
+    try { return localStorage.getItem(STORAGE_KEY) !== null; }
+    catch (_) { return false; }
+  }
 
   // --- XML Parsing ---
   function parseXML(text) {
@@ -406,12 +450,15 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
 
   function populateLocaleSelect() {
     localeSelect.innerHTML = '';
-    app.locales.forEach(code => {
+    let selectedIdx = 0;
+    app.locales.forEach((code, i) => {
       const opt = document.createElement('option');
       opt.value = code;
       opt.textContent = localeLabel(code) + ' (' + code + ')';
       localeSelect.appendChild(opt);
+      if (code === app.importedLocale) selectedIdx = i;
     });
+    if (localeSelect.options.length) localeSelect.selectedIndex = selectedIdx;
     localeSelectorArea.classList.remove('hidden');
   }
 
@@ -494,6 +541,14 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
 
   async function doImport(locale) {
     clearError();
+    if (app.importedLocale && app.importedLocale !== locale) {
+      app.strings.forEach(s => {
+        if (s.type === 'string-array') s.itemTranslations = s.items.map(() => '');
+        else s.translation = '';
+      });
+      clearSavedState();
+      app.importedLocale = '';
+    }
     stepImport.classList.remove('hidden');
     setStep(stepImport, importIcon, importStatus, 'active', 'Importing translations for ' + localeLabel(locale) + ' (' + locale + ')...');
     importBtn.disabled = true;
@@ -503,7 +558,9 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
       const text = await fetchText(transUrl);
       const result = mergeTranslations(text);
       setStep(stepImport, importIcon, importStatus, 'done', 'Imported ' + result.matched + ' translation' + (result.matched !== 1 ? 's' : '') + (result.skipped ? ' (' + result.skipped + ' skipped)' : ''));
+      app.importedLocale = locale;
       updateStats();
+      saveState();
       showToast('Loaded translations for ' + localeLabel(locale));
       switchTab('translate');
     } catch (e) {
@@ -522,8 +579,42 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
   });
 
   // --- Init ---
-  loadSource();
-  loadLocales();
+  function applySavedTranslations(saved) {
+    if (!saved) return;
+    app.importedLocale = saved.locale || '';
+    app.strings.forEach(s => {
+      if (s.type === 'string-array') {
+        const arr = saved.stringArrays && saved.stringArrays[s.key];
+        if (arr) s.itemTranslations = arr;
+      } else {
+        const val = saved.strings && saved.strings[s.key];
+        if (val) s.translation = val;
+      }
+    });
+  }
+
+  async function init() {
+    const saved = loadSavedState();
+    if (saved) {
+      try {
+        const text = await fetchText(SOURCE_URL);
+        parseXML(text);
+        applySavedTranslations(saved);
+        setStep(stepSource, sourceIcon, sourceStatus, 'done', 'Loaded ' + app.strings.length + ' strings (restored)');
+        updateStats();
+        switchTab('translate');
+      } catch (e) {
+        setStep(stepSource, sourceIcon, sourceStatus, 'error', 'Failed to restore: ' + e.message);
+        showError('Could not load source strings to restore saved translations. ' + e.message, () => { clearError(); init(); });
+      }
+      loadLocales();
+    } else {
+      loadSource();
+      loadLocales();
+    }
+  }
+
+  init();
 
   // --- Filtering & Sorting ---
   function getFiltered() {
@@ -689,6 +780,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     } else {
       if (feDiv) feDiv.remove();
     }
+    scheduleSave();
     updateStats();
   }
 
@@ -725,6 +817,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
       else if (translated) { statusTd.textContent = '\u2705'; statusTd.title = ''; }
       else { statusTd.textContent = '\u274c'; statusTd.title = ''; }
     }
+    scheduleSave();
     updateStats();
   }
 
