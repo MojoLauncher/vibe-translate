@@ -17,15 +17,7 @@ h1 { font-size: 24px; margin-bottom: 8px; }
 .tab { padding: 10px 24px; cursor: pointer; border: none; background: none; font-size: 14px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
 .tab.active { color: #1976d2; border-bottom-color: #1976d2; font-weight: 600; }
 
-.input-area { min-height: 300px; }
-.input-area textarea { width: 100%; min-height: 250px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; padding: 12px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; }
-.input-area textarea:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,.15); }
 
-.file-area { border: 2px dashed #ccc; border-radius: 8px; padding: 40px 20px; text-align: center; cursor: pointer; }
-.file-area:hover { border-color: #1976d2; background: #f8fbff; }
-.file-area.dragover { border-color: #1976d2; background: #e3f2fd; }
-.file-area p { margin-bottom: 12px; color: #666; }
-.file-area input[type=file] { display: none; }
 
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
 .btn-primary { background: #1976d2; color: #fff; }
@@ -100,6 +92,32 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
 .export-warning { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 4px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; color: #e65100; }
 .export-warning a { text-decoration: underline; cursor: pointer; }
 .export-warning a:hover { color: #bf360c; }
+
+.import-card h2 { font-size: 18px; margin-bottom: 4px; }
+.import-card .repo-info { color: #666; font-size: 13px; margin-bottom: 20px; }
+.import-card .repo-info code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+
+.import-step { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px; margin-bottom: 16px; }
+.import-step h3 { font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.import-step .step-status { font-size: 13px; color: #666; }
+.import-step .step-status .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #ccc; border-top-color: #1976d2; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.import-step .step-status .check { color: #2e7d32; }
+.import-step .step-status .cross { color: #c62828; }
+.import-step .step-status .warn { color: #e65100; }
+
+.import-step.done { border-color: #c8e6c9; background: #f1f8e9; }
+.import-step.error { border-color: #ffcdd2; background: #ffebee; }
+.import-step.active { border-color: #bbdefb; background: #e3f2fd; }
+
+.locale-row { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin-top: 12px; }
+.locale-row label { font-size: 13px; font-weight: 600; color: #333; display: block; margin-bottom: 4px; }
+.locale-row select { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; min-width: 220px; background: #fff; }
+.locale-row select:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,.15); }
+.locale-row select:disabled { opacity: .6; }
+
+.error-box { background: #ffebee; border: 1px solid #ef9a9a; border-radius: 4px; padding: 12px 16px; margin-top: 12px; font-size: 13px; color: #c62828; }
+.error-box button { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -116,25 +134,37 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
 
   <!-- INPUT TAB -->
   <div class="tab-content" id="tab-input">
-    <div class="card">
-      <div class="input-area">
-        <div class="actions" style="margin-bottom:12px">
-          <label class="file-area" id="fileArea" style="flex:1; padding:24px">
-            <p><strong>Click or drag &amp; drop</strong> a <code>strings.xml</code> file</p>
-            <input type="file" accept=".xml" id="fileInput">
-            <span style="font-size:13px;color:#999">or paste XML below</span>
-          </label>
+    <div class="card import-card">
+      <h2>MojoLauncher String Resources</h2>
+      <p class="repo-info">
+        Repository: <code>MojoLauncher/MojoLauncher</code> &mdash; branch <code>v3_openjdk</code>
+      </p>
+
+      <div id="stepSource" class="import-step">
+        <h3>1. Source strings <span id="sourceIcon"></span></h3>
+        <div class="step-status" id="sourceStatus">Waiting...</div>
+      </div>
+
+      <div id="stepLocales" class="import-step">
+        <h3>2. Available locales <span id="localesIcon"></span></h3>
+        <div class="step-status" id="localesStatus">Waiting...</div>
+        <div id="localeSelectorArea" class="hidden">
+          <div class="locale-row">
+            <div>
+              <label for="localeSelect">Target locale:</label>
+              <select id="localeSelect"></select>
+            </div>
+            <button class="btn btn-primary" id="importBtn">Import Translations</button>
+          </div>
         </div>
-        <textarea id="xmlInput" placeholder='<?xml version="1.0" encoding="utf-8"?>
-<resources>
-  <string name="app_name">My App</string>
-  <string name="welcome">Welcome</string>
-</resources>'></textarea>
       </div>
-      <div class="actions" style="margin-top:12px">
-        <button class="btn btn-primary" id="parseBtn">Parse</button>
-        <button class="btn btn-secondary" id="loadSampleBtn">Load Sample</button>
+
+      <div id="stepImport" class="import-step hidden">
+        <h3>3. Import <span id="importIcon"></span></h3>
+        <div class="step-status" id="importStatus"></div>
       </div>
+
+      <div id="errorArea" class="hidden"></div>
     </div>
   </div>
 
@@ -145,8 +175,6 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
         <button class="btn btn-secondary btn-sm" id="selectAllBtn">Select All</button>
         <button class="btn btn-secondary btn-sm" id="deselectAllBtn">Deselect All</button>
         <button class="btn btn-secondary btn-sm" id="copyOriginalBtn">Copy Originals</button>
-        <button class="btn btn-secondary btn-sm" id="importBtn">Import Translations</button>
-        <input type="file" accept=".xml" id="importFileInput" style="display:none">
         <div class="stats" id="stats"></div>
       </div>
       <div class="filter-bar" id="filterBar">
@@ -171,7 +199,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
             </tr>
           </thead>
           <tbody id="tableBody">
-            <tr class="empty-state"><td colspan="5"><p>No strings loaded</p><p>Go to Input tab and paste or upload a strings.xml file</p></td></tr>
+            <tr class="empty-state"><td colspan="5"><p>No strings loaded</p><p>Go to the Input tab and select a locale to import</p></td></tr>
           </tbody>
         </table>
       </div>
@@ -207,6 +235,12 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
 
 <script>
 (function() {
+  const GITHUB_REPO = 'MojoLauncher/MojoLauncher';
+  const GITHUB_BRANCH = 'v3_openjdk';
+  const RES_PATH = 'app_pojavlauncher/src/main/res';
+  const SOURCE_URL = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/' + GITHUB_BRANCH + '/' + RES_PATH + '/values/strings.xml';
+  const LOCALE_API_URL = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + RES_PATH;
+
   const app = {
     strings: [],
     sortCol: 'key',
@@ -215,13 +249,10 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     search: '',
     comments: [],
     xmlProlog: '<?xml version="1.0" encoding="utf-8"?>',
+    locales: [],
+    localeNames: {},
   };
 
-  const xmlInput = document.getElementById('xmlInput');
-  const parseBtn = document.getElementById('parseBtn');
-  const loadSampleBtn = document.getElementById('loadSampleBtn');
-  const fileInput = document.getElementById('fileInput');
-  const fileArea = document.getElementById('fileArea');
   const tableBody = document.getElementById('tableBody');
   const searchInput = document.getElementById('searchInput');
   const headerCheckbox = document.getElementById('headerCheckbox');
@@ -238,6 +269,20 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
 
   const filterBtns = document.querySelectorAll('.filter-btn');
   const sortableHeaders = document.querySelectorAll('.sortable');
+
+  const sourceIcon = document.getElementById('sourceIcon');
+  const sourceStatus = document.getElementById('sourceStatus');
+  const stepSource = document.getElementById('stepSource');
+  const localesIcon = document.getElementById('localesIcon');
+  const localesStatus = document.getElementById('localesStatus');
+  const stepLocales = document.getElementById('stepLocales');
+  const localeSelect = document.getElementById('localeSelect');
+  const localeSelectorArea = document.getElementById('localeSelectorArea');
+  const importBtn = document.getElementById('importBtn');
+  const stepImport = document.getElementById('stepImport');
+  const importIcon = document.getElementById('importIcon');
+  const importStatus = document.getElementById('importStatus');
+  const errorArea = document.getElementById('errorArea');
 
   function showToast(msg) {
     const t = document.getElementById('toast');
@@ -324,17 +369,95 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     return true;
   }
 
-  // --- Import Translations ---
-  function importTranslations(text) {
+  // --- GitHub Fetch & Import ---
+  function clearError() {
+    errorArea.classList.add('hidden');
+    errorArea.innerHTML = '';
+  }
+
+  function showError(msg, retryFn) {
+    errorArea.classList.remove('hidden');
+    errorArea.innerHTML = '<div class="error-box">' + escHtml(msg) +
+      (retryFn ? ' <button class="btn btn-secondary btn-sm" id="retryBtn">Retry</button>' : '') +
+      '</div>';
+    if (retryFn) document.getElementById('retryBtn').addEventListener('click', retryFn);
+  }
+
+  function setStep(stepEl, iconEl, statusEl, state, msg) {
+    stepEl.className = 'import-step';
+    if (state === 'done') { stepEl.classList.add('done'); iconEl.innerHTML = '<span class="check">\u2714</span>'; }
+    else if (state === 'error') { stepEl.classList.add('error'); iconEl.innerHTML = '<span class="cross">\u2718</span>'; }
+    else if (state === 'active') { stepEl.classList.add('active'); iconEl.innerHTML = '<span class="spinner"></span>'; }
+    else { iconEl.innerHTML = ''; }
+    statusEl.textContent = msg;
+  }
+
+  async function fetchText(url) {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ' + resp.statusText);
+    return resp.text();
+  }
+
+  function localeCodeFromName(name) {
+    return name.replace(/^values-/, '');
+  }
+
+  function localeLabel(code) {
+    return app.localeNames[code] || code;
+  }
+
+  function populateLocaleSelect() {
+    localeSelect.innerHTML = '';
+    app.locales.forEach(code => {
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = localeLabel(code) + ' (' + code + ')';
+      localeSelect.appendChild(opt);
+    });
+    localeSelectorArea.classList.remove('hidden');
+  }
+
+  async function loadLocales() {
+    setStep(stepLocales, localesIcon, localesStatus, 'active', 'Fetching available locales...');
+    try {
+      const json = await fetchText(LOCALE_API_URL);
+      const items = JSON.parse(json);
+      const codes = [];
+      items.forEach(item => {
+        if (item.type === 'dir' && /^values-/.test(item.name)) {
+          codes.push(localeCodeFromName(item.name));
+        }
+      });
+      codes.sort();
+      app.locales = codes;
+      populateLocaleSelect();
+      setStep(stepLocales, localesIcon, localesStatus, 'done', 'Found ' + codes.length + ' locale' + (codes.length !== 1 ? 's' : ''));
+    } catch (e) {
+      setStep(stepLocales, localesIcon, localesStatus, 'error', 'Failed to load locales: ' + e.message);
+      showError('Could not fetch locale list from GitHub. ' + e.message, () => { clearError(); loadLocales(); });
+    }
+  }
+
+  async function loadSource() {
+    setStep(stepSource, sourceIcon, sourceStatus, 'active', 'Loading source strings.xml...');
+    try {
+      const text = await fetchText(SOURCE_URL);
+      parseXML(text);
+      setStep(stepSource, sourceIcon, sourceStatus, 'done', 'Loaded ' + app.strings.length + ' strings');
+    } catch (e) {
+      setStep(stepSource, sourceIcon, sourceStatus, 'error', 'Failed to load source: ' + e.message);
+      showError('Could not fetch source strings.xml from GitHub. ' + e.message, () => { clearError(); loadSource(); });
+    }
+  }
+
+  function mergeTranslations(text) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/xml');
-    const errors = doc.querySelector('parsererror');
-    if (errors) { showToast('Import file is not valid XML'); return; }
+    const err = doc.querySelector('parsererror');
+    if (err) throw new Error('Invalid XML in translation file');
 
     const resources = doc.documentElement;
-    if (!resources || resources.tagName !== 'resources') { showToast('Import file must have <resources> root'); return; }
-
-    if (!app.strings.length) { showToast('Load a source strings.xml first'); return; }
+    if (!resources || resources.tagName !== 'resources') throw new Error('Translation file has no <resources> root');
 
     const keyMap = {};
     app.strings.forEach(s => { keyMap[s.key] = s; });
@@ -368,137 +491,41 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
       }
     });
 
-    renderTable();
-    showToast('Imported ' + matched + ' translation' + (matched !== 1 ? 's' : '') + (skipped ? ' (' + skipped + ' skipped)' : ''));
+    return { matched, skipped };
   }
 
-  // --- Sample ---
-  const SAMPLE = `<?xml version="1.0" encoding="utf-8"?>
-<resources>
-  <string name="app_name">MyApp</string>
-  <string name="app_subtitle">The best app ever</string>
-  <string name="welcome_message">Welcome to MyApp!</string>
-  <string name="login">Log in</string>
-  <string name="logout">Log out</string>
-  <string name="signup">Create Account</string>
-  <string name="email_hint">Email address</string>
-  <string name="password_hint">Password</string>
-  <string name="forgot_password">Forgot password?</string>
-  <string name="error_network">Network error. Please try again.</string>
-  <string name="error_auth">Invalid credentials</string>
-  <string name="error_unknown">Something went wrong</string>
-  <string name="settings_title">Settings</string>
-  <string name="settings_language">Language</string>
-  <string name="settings_theme">Theme</string>
-  <string name="settings_notifications">Notifications</string>
-  <string name="settings_about">About</string>
-  <string name="settings_version">Version</string>
-  <string name="home_title">Home</string>
-  <string name="home_greeting">Hello, %1$s!</string>
-  <string name="item_count">%d items found</string>
-  <string name="welcome_user">Welcome, %1$s!</string>
-  <string name="notification">You have %1$d new notifications and %2$d messages</string>
-  <string name="progress">Progress: %1$d%%</string>
-  <string name="complex">String: %1$s, Number: %2$d, Float: %3$.2f</string>
-  <string name="temperature">Current temperature: %1$.1f°C</string>
-  <string name="home_empty">No items</string>
-  <string name="profile_title">Profile</string>
-  <string name="profile_edit">Edit Profile</string>
-  <string name="profile_save">Save</string>
-  <string name="profile_cancel">Cancel</string>
-  <string name="confirm_dialog_title">Confirm</string>
-  <string name="confirm_dialog_message">Are you sure?</string>
-  <string name="confirm_yes">Yes</string>
-  <string name="confirm_no">No</string>
-  <string name="loading">Loading\u2026</string>
-  <string name="retry">Retry</string>
-  <string name="search_hint">Search\u2026</string>
-  <string name="no_results">No results found</string>
-  <string name="share">Share</string>
-  <string name="delete">Delete</string>
-  <string name="edit">Edit</string>
-  <string name="save">Save</string>
-  <string name="cancel">Cancel</string>
-  <string name="ok">OK</string>
-  <string name="close">Close</string>
-  <string name="back">Back</string>
-  <string name="next">Next</string>
-  <string name="finish">Finish</string>
-  <string name="skip">Skip</string>
-  <string name="rate_title">Rate this app</string>
-  <string name="rate_message">If you enjoy using MyApp, please take a moment to rate it.</string>
-  <string name="rate_now">Rate Now</string>
-  <string name="rate_later">Remind Me Later</string>
-  <string name="rate_never">Don\'t Show Again</string>
-  <string name="terms_title">Terms of Service</string>
-  <string name="terms_body" translatable="false">This is a legal document. Do not translate.</string>
-  <string name="privacy_title" translatable="false">Privacy Policy</string>
-  <string name="counter" translatable="false">%d items</string>
-  <string-array name="languages">
-    <item>English</item>
-    <item>Spanish</item>
-    <item>French</item>
-    <item>German</item>
-    <item>Chinese</item>
-  </string-array>
-  <string-array name="themes">
-    <item>Light</item>
-    <item>Dark</item>
-    <item>System Default</item>
-  </string-array>
-</resources>`;
+  async function doImport(locale) {
+    clearError();
+    stepImport.classList.remove('hidden');
+    setStep(stepImport, importIcon, importStatus, 'active', 'Importing translations for ' + localeLabel(locale) + ' (' + locale + ')...');
+    importBtn.disabled = true;
 
-  loadSampleBtn.addEventListener('click', () => {
-    xmlInput.value = SAMPLE;
-    loadXML(SAMPLE);
+    try {
+      const transUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/' + GITHUB_BRANCH + '/' + RES_PATH + '/values-' + locale + '/strings.xml';
+      const text = await fetchText(transUrl);
+      const result = mergeTranslations(text);
+      setStep(stepImport, importIcon, importStatus, 'done', 'Imported ' + result.matched + ' translation' + (result.matched !== 1 ? 's' : '') + (result.skipped ? ' (' + result.skipped + ' skipped)' : ''));
+      updateStats();
+      showToast('Loaded translations for ' + localeLabel(locale));
+      switchTab('translate');
+    } catch (e) {
+      setStep(stepImport, importIcon, importStatus, 'error', 'Failed: ' + e.message);
+      showError('Could not fetch translations from GitHub. ' + e.message, () => { clearError(); doImport(locale); });
+    } finally {
+      importBtn.disabled = false;
+    }
+  }
+
+  importBtn.addEventListener('click', () => {
+    const sel = localeSelect.value;
+    if (!sel) { showToast('Select a locale first'); return; }
+    if (!app.strings.length) { showToast('Source strings not loaded yet'); return; }
+    doImport(sel);
   });
 
-  parseBtn.addEventListener('click', () => {
-    const text = xmlInput.value.trim();
-    if (!text) { showToast('Paste or upload XML first'); return; }
-    loadXML(text);
-  });
-
-  // --- File handling ---
-  fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      xmlInput.value = ev.target.result;
-      loadXML(ev.target.result);
-    };
-    reader.readAsText(file);
-  });
-
-  fileArea.addEventListener('dragover', (e) => { e.preventDefault(); fileArea.classList.add('dragover'); });
-  fileArea.addEventListener('dragleave', () => fileArea.classList.remove('dragover'));
-  fileArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    fileArea.classList.remove('dragover');
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      xmlInput.value = ev.target.result;
-      loadXML(ev.target.result);
-    };
-    reader.readAsText(file);
-  });
-
-  // --- Import Translations UI ---
-  document.getElementById('importBtn').addEventListener('click', () => {
-    document.getElementById('importFileInput').click();
-  });
-
-  document.getElementById('importFileInput').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => importTranslations(ev.target.result);
-    reader.readAsText(file);
-    e.target.value = '';
-  });
+  // --- Init ---
+  loadSource();
+  loadLocales();
 
   // --- Filtering & Sorting ---
   function getFiltered() {
@@ -953,13 +980,6 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     });
 
     return { errors, origSpecs: orig.specs, transSpecs: trans.specs };
-  }
-
-  function getValidatedText(s) {
-    if (s.type === 'string-array') {
-      return s.itemTranslations.map((t, i) => t.trim() || s.items[i]).join(', ');
-    }
-    return s.translation || '';
   }
 
   function recomputeFormatErrors(s) {
