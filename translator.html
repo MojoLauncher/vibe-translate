@@ -57,6 +57,8 @@ tbody td.status { width: 30px; text-align: center; font-size: 16px; }
 tbody tr.has-format-errors { border-left: 3px solid #e65100; background: #fff8e1; }
 tbody tr.has-format-errors:hover { background: #fff3e0; }
 .format-errors { margin-top: 4px; font-size: 11px; color: #e65100; }
+.auto-resize { display: block; width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; font-family: inherit; line-height: 1.4; resize: none; overflow: hidden; box-sizing: border-box; }
+.auto-resize:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,.15); }
 .format-errors div { padding: 2px 0; }
 .format-errors .spec-detail { color: #888; font-size: 10px; margin-top: 2px; }
 .spec-tag { display: inline-block; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px; background: #e3f2fd; color: #1565c0; padding: 1px 5px; border-radius: 3px; margin: 1px 2px 1px 0; }
@@ -707,12 +709,14 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     });
     tableBody.innerHTML = html;
 
-    // Bind input events
+    // Bind input events and auto-size
     tableBody.querySelectorAll('.trans-input').forEach(inp => {
       inp.addEventListener('input', onTranslateInput);
+      autoResize(inp);
     });
     tableBody.querySelectorAll('.item-input').forEach(inp => {
       inp.addEventListener('input', onItemInput);
+      autoResize(inp);
     });
 
     updateStats();
@@ -734,19 +738,26 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
       return s.items.map((item, i) => {
         const fe = s._formatErrors && s._formatErrors[i];
         const hasErr = fe && fe.errors && fe.errors.length;
+        const val = s.itemTranslations[i] || '';
         return '<div style="margin-bottom:6px">' +
-          '<div style="display:flex;gap:4px;align-items:center">' +
-          '<span style="color:#999;font-size:10px;white-space:nowrap">' + (i+1) + '.</span>' +
-          '<input class="item-input" style="flex:1' + (hasErr ? ';border-color:#e65100;background:#fff3e0' : '') + '" data-idx="' + app.strings.indexOf(s) + '" data-item="' + i + '" value="' + escAttr(s.itemTranslations[i] || '') + '" placeholder="' + escAttr(item) + '">' +
+          '<div style="display:flex;gap:4px;align-items:flex-start">' +
+          '<span style="color:#999;font-size:10px;white-space:nowrap;padding-top:7px">' + (i+1) + '.</span>' +
+          '<textarea class="item-input auto-resize" data-idx="' + app.strings.indexOf(s) + '" data-item="' + i + '" placeholder="' + escAttr(item) + '" style="flex:1' + (hasErr ? ';border-color:#e65100;background:#fff3e0' : '') + '" rows="1">' + escHtml(val) + '</textarea>' +
           '</div>' +
           (hasErr ? '<div class="format-errors">' + fe.errors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('') + '</div>' : '') +
           '</div>';
       }).join('');
     }
     const hasErr = s._hasErrors;
-    const inputStyle = s.translation ? (hasErr ? 'border-color:#e65100;background:#fff3e0' : 'border-color:#43a047;background:#f1f8e9') : (hasErr ? 'border-color:#e65100;background:#fff3e0' : '');
-    return '<input class="trans-input" data-idx="' + app.strings.indexOf(s) + '" value="' + escAttr(s.translation || '') + '" placeholder="' + escAttr(s.original) + '" style="' + inputStyle + '">' +
+    const val = s.translation || '';
+    const inputStyle = val ? (hasErr ? 'border-color:#e65100;background:#fff3e0' : 'border-color:#43a047;background:#f1f8e9') : (hasErr ? 'border-color:#e65100;background:#fff3e0' : '');
+    return '<textarea class="trans-input auto-resize" data-idx="' + app.strings.indexOf(s) + '" placeholder="' + escAttr(s.original) + '" style="' + inputStyle + '" rows="1">' + escHtml(val) + '</textarea>' +
       (hasErr ? '<div class="format-errors" id="fe-' + app.strings.indexOf(s) + '">' + s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('') + '</div>' : '');
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
   }
 
   function onTranslateInput(e) {
@@ -754,6 +765,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     const s = app.strings[idx];
     if (!s) return;
     s.translation = e.target.value;
+    autoResize(e.target);
     recomputeFormatErrors(s);
     const hasErr = s._hasErrors;
     const translated = !!s.translation;
@@ -790,6 +802,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     const s = app.strings[idx];
     if (!s || !s.itemTranslations) return;
     s.itemTranslations[item] = e.target.value;
+    autoResize(e.target);
     recomputeFormatErrors(s);
     const hasErr = s._formatErrors && s._formatErrors[item] && s._formatErrors[item].errors.length;
     e.target.style.borderColor = hasErr ? '#e65100' : e.target.value ? '#43a047' : '#ccc';
