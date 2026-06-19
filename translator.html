@@ -174,8 +174,8 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
   <div class="tab-content hidden" id="tab-translate">
     <div class="card">
       <div class="actions">
-        <button class="btn btn-secondary btn-sm" id="selectAllBtn">Select All</button>
-        <button class="btn btn-secondary btn-sm" id="deselectAllBtn">Deselect All</button>
+        <button class="btn btn-secondary btn-sm" id="importXmlBtn">Import translated XML</button>
+        <input type="file" accept=".xml" id="importFileInput" style="display:none">
         <div class="stats" id="stats"></div>
       </div>
       <div class="filter-bar" id="filterBar">
@@ -583,6 +583,25 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     if (!sel) { showToast('Select a locale first'); return; }
     if (!app.strings.length) { showToast('Source strings not loaded yet'); return; }
     doImport(sel);
+  });
+
+  // --- Import Translations UI ---
+  document.getElementById('importXmlBtn').addEventListener('click', () => {
+    document.getElementById('importFileInput').click();
+  });
+
+  document.getElementById('importFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { 
+      const result = mergeTranslations(ev.target.result);
+      showToast('Imported ' + result.matched + ' translation' + (result.matched !== 1 ? 's' : '') + ' from XML' + (result.skipped ? ' (' + result.skipped + ' skipped)' : '') );
+      renderTable();
+      saveState();
+    }
+    reader.readAsText(file);
+    e.target.value = '';
   });
 
   // --- Init ---
