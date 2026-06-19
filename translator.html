@@ -586,6 +586,9 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
 
   // --- Import Translations UI ---
   document.getElementById('importXmlBtn').addEventListener('click', () => {
+    if (app.strings.some(s => s.translation || (s.itemTranslations && s.itemTranslations.some(t => t)))) {
+      if (!confirm('Importing an XML file will overwrite your current translations. Continue?')) return;
+    }
     document.getElementById('importFileInput').click();
   });
 
