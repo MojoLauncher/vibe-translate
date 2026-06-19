@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Android String Resource Translator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; padding: 20px; }
+.container { max-width: 1200px; margin: 0 auto; }
+h1 { font-size: 24px; margin-bottom: 8px; }
+.subtitle { color: #666; margin-bottom: 24px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); padding: 20px; margin-bottom: 20px; }
+.hidden { display: none !important; }
+
+.tab-bar { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 20px; }
+.tab { padding: 10px 24px; cursor: pointer; border: none; background: none; font-size: 14px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab.active { color: #1976d2; border-bottom-color: #1976d2; font-weight: 600; }
+
+.input-area { min-height: 300px; }
+.input-area textarea { width: 100%; min-height: 250px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; padding: 12px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; }
+.input-area textarea:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,.15); }
+
+.file-area { border: 2px dashed #ccc; border-radius: 8px; padding: 40px 20px; text-align: center; cursor: pointer; }
+.file-area:hover { border-color: #1976d2; background: #f8fbff; }
+.file-area.dragover { border-color: #1976d2; background: #e3f2fd; }
+.file-area p { margin-bottom: 12px; color: #666; }
+.file-area input[type=file] { display: none; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+.btn-primary { background: #1976d2; color: #fff; }
+.btn-primary:hover { background: #1565c0; }
+.btn-secondary { background: #e0e0e0; color: #333; }
+.btn-secondary:hover { background: #bdbdbd; }
+.btn-success { background: #2e7d32; color: #fff; }
+.btn-success:hover { background: #1b5e20; }
+.btn-sm { padding: 4px 12px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.actions { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.stats { font-size: 13px; color: #666; margin-left: auto; padding: 6px 0; }
+
+.search-bar { margin-bottom: 16px; }
+.search-bar input { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+.search-bar input:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,.15); }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: #fafafa; border-bottom: 2px solid #e0e0e0; padding: 10px 12px; text-align: left; font-weight: 600; position: sticky; top: 0; cursor: pointer; user-select: none; }
+thead th:hover { background: #f0f0f0; }
+thead th .sort { opacity: .4; }
+thead th .sort.active { opacity: 1; color: #1976d2; }
+tbody tr { border-bottom: 1px solid #eee; }
+tbody tr:hover { background: #f8fbff; }
+tbody tr.non-translatable { opacity: .5; }
+tbody tr.non-translatable td:first-child::after { content: ' (locked)'; font-size: 11px; color: #999; }
+tbody td { padding: 8px 12px; vertical-align: top; line-height: 1.4; }
+tbody td.key { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: #555; word-break: break-all; max-width: 200px; min-width: 120px; }
+tbody td.original { max-width: 300px; min-width: 150px; word-break: break-word; }
+tbody td.original .html-entity { color: #999; font-size: 11px; }
+tbody td input { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; }
+tbody td input:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,.15); }
+tbody td input.translated { border-color: #43a047; background: #f1f8e9; }
+tbody td input.untranslated { border-color: #e53935; background: #ffebee; }
+tbody td.status { width: 30px; text-align: center; font-size: 16px; }
+tbody tr.has-format-errors { border-left: 3px solid #e65100; background: #fff8e1; }
+tbody tr.has-format-errors:hover { background: #fff3e0; }
+.format-errors { margin-top: 4px; font-size: 11px; color: #e65100; }
+.format-errors div { padding: 2px 0; }
+.format-errors .spec-detail { color: #888; font-size: 10px; margin-top: 2px; }
+.spec-tag { display: inline-block; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px; background: #e3f2fd; color: #1565c0; padding: 1px 5px; border-radius: 3px; margin: 1px 2px 1px 0; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-total { background: #e3f2fd; color: #1565c0; }
+.badge-done { background: #e8f5e9; color: #2e7d32; }
+.badge-missing { background: #ffebee; color: #c62828; }
+.badge-error { background: #fff3e0; color: #e65100; }
+
+pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; padding: 16px; overflow-x: auto; max-height: 500px; white-space: pre-wrap; word-break: break-all; }
+
+.filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-btn { padding: 4px 14px; border: 1px solid #ccc; border-radius: 14px; background: #fff; cursor: pointer; font-size: 12px; color: #555; }
+.filter-btn.active { background: #1976d2; color: #fff; border-color: #1976d2; }
+.filter-btn:hover:not(.active) { background: #f5f5f5; }
+
+.empty-state { text-align: center; padding: 60px 20px; color: #999; }
+.empty-state p { font-size: 16px; margin-bottom: 8px; }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #323232; color: #fff; padding: 12px 24px; border-radius: 4px; font-size: 14px; z-index: 1000; opacity: 0; transition: opacity .3s; pointer-events: none; }
+.toast.show { opacity: 1; }
+
+@media (max-width: 768px) {
+  body { padding: 10px; }
+  .table-wrap { overflow-x: auto; }
+  tbody td.key, tbody td.original { max-width: 120px; min-width: 80px; }
+}
+
+.checkbox-group { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.checkbox-group label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+.export-warning { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 4px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; color: #e65100; }
+.export-warning a { text-decoration: underline; cursor: pointer; }
+.export-warning a:hover { color: #bf360c; }
+</style>
+</head>
+<body>
+
+<div class="container" id="app">
+  <h1>Android String Resource Translator</h1>
+  <p class="subtitle">Parse, translate, and export <code>strings.xml</code> files</p>
+
+  <div class="tab-bar">
+    <button class="tab active" data-tab="input">Input</button>
+    <button class="tab" data-tab="translate" id="translateTab">Translate <span id="tabCount" class="badge badge-total" style="margin-left:6px">0</span></button>
+    <button class="tab" data-tab="export">Export</button>
+  </div>
+
+  <!-- INPUT TAB -->
+  <div class="tab-content" id="tab-input">
+    <div class="card">
+      <div class="input-area">
+        <div class="actions" style="margin-bottom:12px">
+          <label class="file-area" id="fileArea" style="flex:1; padding:24px">
+            <p><strong>Click or drag &amp; drop</strong> a <code>strings.xml</code> file</p>
+            <input type="file" accept=".xml" id="fileInput">
+            <span style="font-size:13px;color:#999">or paste XML below</span>
+          </label>
+        </div>
+        <textarea id="xmlInput" placeholder='<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">My App</string>
+  <string name="welcome">Welcome</string>
+</resources>'></textarea>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="btn btn-primary" id="parseBtn">Parse</button>
+        <button class="btn btn-secondary" id="loadSampleBtn">Load Sample</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSLATE TAB -->
+  <div class="tab-content hidden" id="tab-translate">
+    <div class="card">
+      <div class="actions">
+        <button class="btn btn-secondary btn-sm" id="selectAllBtn">Select All</button>
+        <button class="btn btn-secondary btn-sm" id="deselectAllBtn">Deselect All</button>
+        <button class="btn btn-secondary btn-sm" id="copyOriginalBtn">Copy Originals</button>
+        <button class="btn btn-secondary btn-sm" id="importBtn">Import Translations</button>
+        <input type="file" accept=".xml" id="importFileInput" style="display:none">
+        <div class="stats" id="stats"></div>
+      </div>
+      <div class="filter-bar" id="filterBar">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="untranslated">Untranslated</button>
+        <button class="filter-btn" data-filter="translated">Translated</button>
+        <button class="filter-btn" data-filter="locked">Locked</button>
+        <button class="filter-btn" data-filter="errors">Format Errors</button>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search keys or values\u2026">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:30px"><input type="checkbox" id="headerCheckbox" title="Toggle all"></th>
+              <th class="sortable" data-col="key">Key <span class="sort" id="sort-key">\u25b4</span></th>
+              <th class="sortable" data-col="original">Original <span class="sort" id="sort-original">\u25b4</span></th>
+              <th>Translation</th>
+              <th class="sortable" data-col="status">Status <span class="sort" id="sort-status">\u25b4</span></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr class="empty-state"><td colspan="5"><p>No strings loaded</p><p>Go to Input tab and paste or upload a strings.xml file</p></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORT TAB -->
+  <div class="tab-content hidden" id="tab-export">
+    <div class="card">
+      <div class="actions">
+        <button class="btn btn-success" id="exportAllBtn">Export All</button>
+        <button class="btn btn-success" id="exportTranslatedOnlyBtn">Export Translated Only</button>
+        <button class="btn btn-secondary" id="copyExportBtn">Copy to Clipboard</button>
+        <button class="btn btn-secondary" id="downloadBtn">Download</button>
+      </div>
+      <div class="checkbox-group" style="margin-bottom:12px">
+        <label><input type="checkbox" id="optionSkipLocked" checked> Skip locked (translatable="false")</label>
+        <label><input type="checkbox" id="optionSkipUntranslated" checked> Skip untranslated</label>
+        <label><input type="checkbox" id="optionIndent" checked> Indent output</label>
+        <label><input type="checkbox" id="optionPreserveComments" checked> Preserve comments</label>
+      </div>
+      <div id="exportWarning" class="export-warning hidden">
+        <strong>⚠ Format specifier errors detected</strong> —
+        <span id="exportWarningText"></span>
+        <a href="#" id="exportWarningLink" style="color:inherit;font-weight:600">View errors</a>
+      </div>
+      <pre id="exportOutput">No data to export.</pre>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  const app = {
+    strings: [],
+    sortCol: 'key',
+    sortAsc: true,
+    filter: 'all',
+    search: '',
+    comments: [],
+    xmlProlog: '<?xml version="1.0" encoding="utf-8"?>',
+  };
+
+  const xmlInput = document.getElementById('xmlInput');
+  const parseBtn = document.getElementById('parseBtn');
+  const loadSampleBtn = document.getElementById('loadSampleBtn');
+  const fileInput = document.getElementById('fileInput');
+  const fileArea = document.getElementById('fileArea');
+  const tableBody = document.getElementById('tableBody');
+  const searchInput = document.getElementById('searchInput');
+  const headerCheckbox = document.getElementById('headerCheckbox');
+  const stats = document.getElementById('stats');
+  const tabCount = document.getElementById('tabCount');
+  const exportOutput = document.getElementById('exportOutput');
+
+  const tabs = document.querySelectorAll('.tab');
+  const tabContents = {
+    input: document.getElementById('tab-input'),
+    translate: document.getElementById('tab-translate'),
+    export: document.getElementById('tab-export'),
+  };
+
+  const filterBtns = document.querySelectorAll('.filter-btn');
+  const sortableHeaders = document.querySelectorAll('.sortable');
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._hide);
+    t._hide = setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function switchTab(name) {
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    Object.keys(tabContents).forEach(k => tabContents[k].classList.toggle('hidden', k !== name));
+    if (name === 'translate') renderTable();
+    if (name === 'export') renderExport();
+  }
+
+  tabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+  // --- XML Parsing ---
+  function parseXML(text) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/xml');
+    const errors = doc.querySelector('parsererror');
+    if (errors) throw new Error('Invalid XML: ' + errors.textContent.trim());
+
+    const resources = doc.documentElement;
+    if (!resources || resources.tagName !== 'resources') throw new Error('Root element must be <resources>');
+
+    app.comments = [];
+    const result = [];
+
+    for (let i = 0; i < resources.childNodes.length; i++) {
+      const node = resources.childNodes[i];
+      if (node.nodeType === 8) {
+        app.comments.push({ index: result.length, text: node.textContent.trim() });
+      }
+    }
+
+    const stringNodes = resources.querySelectorAll('string, string-array');
+    stringNodes.forEach(el => {
+      const name = el.getAttribute('name');
+      if (!name) return;
+
+      if (el.tagName === 'string') {
+        const translatable = el.getAttribute('translatable');
+        result.push({
+          key: name,
+          original: el.textContent,
+          translation: '',
+          translatable: translatable !== 'false',
+          type: 'string',
+        });
+      } else if (el.tagName === 'string-array') {
+        const translatable = el.getAttribute('translatable');
+        const items = el.querySelectorAll('item');
+        const values = Array.from(items).map(it => it.textContent);
+        result.push({
+          key: name,
+          original: values.join(', '),
+          translation: '',
+          translatable: translatable !== 'false',
+          type: 'string-array',
+          items: values,
+          itemTranslations: values.map(() => ''),
+          itemEls: items,
+        });
+      }
+    });
+
+    app.strings = result;
+    app.xmlProlog = text.match(/^<\?xml[^>]*\?>/)?.[0] || '<?xml version="1.0" encoding="utf-8"?>';
+  }
+
+  function loadXML(text) {
+    try {
+      parseXML(text);
+    } catch (e) {
+      showToast('Parse error: ' + e.message);
+      return false;
+    }
+    updateStats();
+    showToast('Parsed ' + app.strings.length + ' strings');
+    switchTab('translate');
+    return true;
+  }
+
+  // --- Import Translations ---
+  function importTranslations(text) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/xml');
+    const errors = doc.querySelector('parsererror');
+    if (errors) { showToast('Import file is not valid XML'); return; }
+
+    const resources = doc.documentElement;
+    if (!resources || resources.tagName !== 'resources') { showToast('Import file must have <resources> root'); return; }
+
+    if (!app.strings.length) { showToast('Load a source strings.xml first'); return; }
+
+    const keyMap = {};
+    app.strings.forEach(s => { keyMap[s.key] = s; });
+
+    let matched = 0;
+    let skipped = 0;
+
+    resources.querySelectorAll('string, string-array').forEach(el => {
+      const name = el.getAttribute('name');
+      if (!name) return;
+      const target = keyMap[name];
+      if (!target) { skipped++; return; }
+      if (!target.translatable) { skipped++; return; }
+
+      if (el.tagName === 'string' && target.type === 'string') {
+        target.translation = el.textContent;
+        matched++;
+      } else if (el.tagName === 'string-array' && target.type === 'string-array') {
+        const importedItems = el.querySelectorAll('item');
+        let itemMatch = 0;
+        importedItems.forEach((itemEl, i) => {
+          if (i < target.itemTranslations.length) {
+            target.itemTranslations[i] = itemEl.textContent;
+            itemMatch++;
+          }
+        });
+        if (itemMatch > 0) matched++;
+        else skipped++;
+      } else {
+        skipped++;
+      }
+    });
+
+    renderTable();
+    showToast('Imported ' + matched + ' translation' + (matched !== 1 ? 's' : '') + (skipped ? ' (' + skipped + ' skipped)' : ''));
+  }
+
+  // --- Sample ---
+  const SAMPLE = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">MyApp</string>
+  <string name="app_subtitle">The best app ever</string>
+  <string name="welcome_message">Welcome to MyApp!</string>
+  <string name="login">Log in</string>
+  <string name="logout">Log out</string>
+  <string name="signup">Create Account</string>
+  <string name="email_hint">Email address</string>
+  <string name="password_hint">Password</string>
+  <string name="forgot_password">Forgot password?</string>
+  <string name="error_network">Network error. Please try again.</string>
+  <string name="error_auth">Invalid credentials</string>
+  <string name="error_unknown">Something went wrong</string>
+  <string name="settings_title">Settings</string>
+  <string name="settings_language">Language</string>
+  <string name="settings_theme">Theme</string>
+  <string name="settings_notifications">Notifications</string>
+  <string name="settings_about">About</string>
+  <string name="settings_version">Version</string>
+  <string name="home_title">Home</string>
+  <string name="home_greeting">Hello, %1$s!</string>
+  <string name="item_count">%d items found</string>
+  <string name="welcome_user">Welcome, %1$s!</string>
+  <string name="notification">You have %1$d new notifications and %2$d messages</string>
+  <string name="progress">Progress: %1$d%%</string>
+  <string name="complex">String: %1$s, Number: %2$d, Float: %3$.2f</string>
+  <string name="temperature">Current temperature: %1$.1f°C</string>
+  <string name="home_empty">No items</string>
+  <string name="profile_title">Profile</string>
+  <string name="profile_edit">Edit Profile</string>
+  <string name="profile_save">Save</string>
+  <string name="profile_cancel">Cancel</string>
+  <string name="confirm_dialog_title">Confirm</string>
+  <string name="confirm_dialog_message">Are you sure?</string>
+  <string name="confirm_yes">Yes</string>
+  <string name="confirm_no">No</string>
+  <string name="loading">Loading\u2026</string>
+  <string name="retry">Retry</string>
+  <string name="search_hint">Search\u2026</string>
+  <string name="no_results">No results found</string>
+  <string name="share">Share</string>
+  <string name="delete">Delete</string>
+  <string name="edit">Edit</string>
+  <string name="save">Save</string>
+  <string name="cancel">Cancel</string>
+  <string name="ok">OK</string>
+  <string name="close">Close</string>
+  <string name="back">Back</string>
+  <string name="next">Next</string>
+  <string name="finish">Finish</string>
+  <string name="skip">Skip</string>
+  <string name="rate_title">Rate this app</string>
+  <string name="rate_message">If you enjoy using MyApp, please take a moment to rate it.</string>
+  <string name="rate_now">Rate Now</string>
+  <string name="rate_later">Remind Me Later</string>
+  <string name="rate_never">Don\'t Show Again</string>
+  <string name="terms_title">Terms of Service</string>
+  <string name="terms_body" translatable="false">This is a legal document. Do not translate.</string>
+  <string name="privacy_title" translatable="false">Privacy Policy</string>
+  <string name="counter" translatable="false">%d items</string>
+  <string-array name="languages">
+    <item>English</item>
+    <item>Spanish</item>
+    <item>French</item>
+    <item>German</item>
+    <item>Chinese</item>
+  </string-array>
+  <string-array name="themes">
+    <item>Light</item>
+    <item>Dark</item>
+    <item>System Default</item>
+  </string-array>
+</resources>`;
+
+  loadSampleBtn.addEventListener('click', () => {
+    xmlInput.value = SAMPLE;
+    loadXML(SAMPLE);
+  });
+
+  parseBtn.addEventListener('click', () => {
+    const text = xmlInput.value.trim();
+    if (!text) { showToast('Paste or upload XML first'); return; }
+    loadXML(text);
+  });
+
+  // --- File handling ---
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      xmlInput.value = ev.target.result;
+      loadXML(ev.target.result);
+    };
+    reader.readAsText(file);
+  });
+
+  fileArea.addEventListener('dragover', (e) => { e.preventDefault(); fileArea.classList.add('dragover'); });
+  fileArea.addEventListener('dragleave', () => fileArea.classList.remove('dragover'));
+  fileArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    fileArea.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      xmlInput.value = ev.target.result;
+      loadXML(ev.target.result);
+    };
+    reader.readAsText(file);
+  });
+
+  // --- Import Translations UI ---
+  document.getElementById('importBtn').addEventListener('click', () => {
+    document.getElementById('importFileInput').click();
+  });
+
+  document.getElementById('importFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => importTranslations(ev.target.result);
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  // --- Filtering & Sorting ---
+  function getFiltered() {
+    let list = app.strings;
+    if (app.filter === 'untranslated') list = list.filter(s => s.translatable && !getTranslation(s));
+    else if (app.filter === 'translated') list = list.filter(s => s.translatable && !!getTranslation(s));
+    else if (app.filter === 'locked') list = list.filter(s => !s.translatable);
+    else if (app.filter === 'errors') list = list.filter(s => s.translatable && s._hasErrors);
+
+    if (app.search) {
+      const q = app.search.toLowerCase();
+      list = list.filter(s => s.key.toLowerCase().includes(q) || s.original.toLowerCase().includes(q) || (getTranslation(s)||'').toLowerCase().includes(q));
+    }
+    return list;
+  }
+
+  function getTranslation(s) {
+    if (s.type === 'string-array') {
+      return s.itemTranslations.filter(t => t.trim()).join(', ');
+    }
+    return s.translation;
+  }
+
+  function sortStrings(list) {
+    const col = app.sortCol;
+    const asc = app.sortAsc;
+    return [...list].sort((a, b) => {
+      let va, vb;
+      if (col === 'key') { va = a.key; vb = b.key; }
+      else if (col === 'original') { va = a.original; vb = b.original; }
+      else {
+        const ta = a.translatable ? (getTranslation(a) ? 'translated' : 'untranslated') : 'locked';
+        const tb = b.translatable ? (getTranslation(b) ? 'translated' : 'untranslated') : 'locked';
+        va = ta; vb = tb;
+      }
+      if (va < vb) return asc ? -1 : 1;
+      if (va > vb) return asc ? 1 : -1;
+      return 0;
+    });
+  }
+
+  function updateSort(col) {
+    if (app.sortCol === col) app.sortAsc = !app.sortAsc;
+    else { app.sortCol = col; app.sortAsc = true; }
+    document.querySelectorAll('.sort').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('sort-' + col);
+    if (el) { el.classList.add('active'); el.textContent = app.sortAsc ? '\u25b4' : '\u25be'; }
+    renderTable();
+  }
+
+  sortableHeaders.forEach(h => h.addEventListener('click', () => updateSort(h.dataset.col)));
+
+  filterBtns.forEach(b => b.addEventListener('click', () => {
+    filterBtns.forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    app.filter = b.dataset.filter;
+    renderTable();
+  }));
+
+  searchInput.addEventListener('input', () => {
+    app.search = searchInput.value;
+    renderTable();
+  });
+
+  // --- Render Table ---
+  function renderTable() {
+    app.strings.forEach(s => recomputeFormatErrors(s));
+    const list = sortStrings(getFiltered());
+    if (!list.length) {
+      tableBody.innerHTML = '<tr class="empty-state"><td colspan="5"><p>No strings match your filter</p></td></tr>';
+      updateHeaderCheckbox();
+      return;
+    }
+    let html = '';
+    list.forEach((s, idx) => {
+      const locked = !s.translatable;
+      const translated = s.translatable && !!getTranslation(s);
+      const hasErrors = s.translatable && s._hasErrors;
+      let status;
+      if (!s.translatable) status = '\ud83d\udd12';
+      else if (hasErrors) status = '\u26a0\ufe0f';
+      else if (translated) status = '\u2705';
+      else status = '\u274c';
+      const rowClass = (locked ? 'non-translatable' : '') + (hasErrors ? ' has-format-errors' : '');
+      html += '<tr class="' + rowClass + '">';
+      html += '<td><input type="checkbox" class="row-checkbox" data-idx="' + app.strings.indexOf(s) + '"' + ((translated || locked) && !hasErrors ? ' checked' : '') + (locked ? ' disabled' : '') + '></td>';
+      html += '<td class="key">' + escHtml(s.key) + (s.type === 'string-array' ? ' <span style="color:#999;font-size:10px">[]</span>' : '') + '</td>';
+      html += '<td class="original">' + getOriginalHtml(s) + '</td>';
+      html += '<td>' + getInputHtml(s) + '</td>';
+      html += '<td class="status" title="' + (hasErrors ? 'Format specifier mismatch' : '') + '">' + status + '</td>';
+      html += '</tr>';
+    });
+    tableBody.innerHTML = html;
+
+    // Bind input events
+    tableBody.querySelectorAll('.trans-input').forEach(inp => {
+      inp.addEventListener('input', onTranslateInput);
+    });
+    tableBody.querySelectorAll('.item-input').forEach(inp => {
+      inp.addEventListener('input', onItemInput);
+    });
+    tableBody.querySelectorAll('.row-checkbox').forEach(cb => {
+      cb.addEventListener('change', onRowCheckbox);
+    });
+
+    updateHeaderCheckbox();
+    updateStats();
+  }
+
+  function getOriginalHtml(s) {
+    let html = escHtml(s.original);
+    if (s.translatable && s._origSpecs && s._origSpecs.length) {
+      html += '<div style="margin-top:4px">' + s._origSpecs.map(sp =>
+        '<span class="spec-tag">%' + sp.index + '$' + sp.conversion + '</span>'
+      ).join('') + '</div>';
+    }
+    return html;
+  }
+
+  function getInputHtml(s) {
+    if (!s.translatable) return '<span style="color:#999;font-size:12px">locked</span>';
+    if (s.type === 'string-array') {
+      return s.items.map((item, i) => {
+        const fe = s._formatErrors && s._formatErrors[i];
+        const hasErr = fe && fe.errors && fe.errors.length;
+        return '<div style="margin-bottom:6px">' +
+          '<div style="display:flex;gap:4px;align-items:center">' +
+          '<span style="color:#999;font-size:10px;white-space:nowrap">' + (i+1) + '.</span>' +
+          '<input class="item-input" style="flex:1' + (hasErr ? ';border-color:#e65100;background:#fff3e0' : '') + '" data-idx="' + app.strings.indexOf(s) + '" data-item="' + i + '" value="' + escAttr(s.itemTranslations[i] || '') + '" placeholder="' + escAttr(item) + '">' +
+          '</div>' +
+          (hasErr ? '<div class="format-errors">' + fe.errors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('') + '</div>' : '') +
+          '</div>';
+      }).join('');
+    }
+    const hasErr = s._hasErrors;
+    const inputStyle = s.translation ? (hasErr ? 'border-color:#e65100;background:#fff3e0' : 'border-color:#43a047;background:#f1f8e9') : (hasErr ? 'border-color:#e65100;background:#fff3e0' : '');
+    return '<input class="trans-input" data-idx="' + app.strings.indexOf(s) + '" value="' + escAttr(s.translation || '') + '" placeholder="' + escAttr(s.original) + '" style="' + inputStyle + '">' +
+      (hasErr ? '<div class="format-errors" id="fe-' + app.strings.indexOf(s) + '">' + s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('') + '</div>' : '');
+  }
+
+  function onTranslateInput(e) {
+    const idx = parseInt(e.target.dataset.idx);
+    const s = app.strings[idx];
+    if (!s) return;
+    s.translation = e.target.value;
+    recomputeFormatErrors(s);
+    const hasErr = s._hasErrors;
+    const translated = !!s.translation;
+    e.target.style.borderColor = hasErr ? '#e65100' : translated ? '#43a047' : '#ccc';
+    e.target.style.background = hasErr ? '#fff3e0' : translated ? '#f1f8e9' : '';
+    const statusTd = e.target.closest('tr').querySelector('.status');
+    if (statusTd) {
+      if (hasErr) { statusTd.textContent = '\u26a0\ufe0f'; statusTd.title = 'Format specifier mismatch'; }
+      else if (translated) { statusTd.textContent = '\u2705'; statusTd.title = ''; }
+      else { statusTd.textContent = '\u274c'; statusTd.title = ''; }
+    }
+    const tr = e.target.closest('tr');
+    tr.classList.toggle('has-format-errors', hasErr);
+    const cb = tr.querySelector('.row-checkbox');
+    if (cb && !cb.disabled) cb.checked = translated && !hasErr;
+    const feDiv = document.getElementById('fe-' + idx);
+    if (hasErr) {
+      if (feDiv) feDiv.innerHTML = s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
+      else {
+        const div = document.createElement('div');
+        div.className = 'format-errors';
+        div.id = 'fe-' + idx;
+        div.innerHTML = s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
+        e.target.parentNode.appendChild(div);
+      }
+    } else {
+      if (feDiv) feDiv.remove();
+    }
+    updateStats();
+  }
+
+  function onItemInput(e) {
+    const idx = parseInt(e.target.dataset.idx);
+    const item = parseInt(e.target.dataset.item);
+    const s = app.strings[idx];
+    if (!s || !s.itemTranslations) return;
+    s.itemTranslations[item] = e.target.value;
+    recomputeFormatErrors(s);
+    const hasErr = s._formatErrors && s._formatErrors[item] && s._formatErrors[item].errors.length;
+    e.target.style.borderColor = hasErr ? '#e65100' : e.target.value ? '#43a047' : '#ccc';
+    e.target.style.background = hasErr ? '#fff3e0' : e.target.value ? '#f1f8e9' : '';
+    const parentDiv = e.target.closest('div').parentNode;
+    let feDiv = parentDiv.querySelector('.format-errors');
+    if (hasErr) {
+      if (feDiv) feDiv.innerHTML = s._formatErrors[item].errors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
+      else {
+        const div = document.createElement('div');
+        div.className = 'format-errors';
+        div.innerHTML = s._formatErrors[item].errors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
+        parentDiv.appendChild(div);
+      }
+    } else {
+      if (feDiv) feDiv.remove();
+    }
+    const tr = e.target.closest('tr');
+    const anyErr = s._hasErrors;
+    tr.classList.toggle('has-format-errors', anyErr);
+    const statusTd = tr.querySelector('.status');
+    const translated = s.itemTranslations.some(t => t.trim());
+    if (statusTd) {
+      if (anyErr) { statusTd.textContent = '\u26a0\ufe0f'; statusTd.title = 'Format specifier mismatch'; }
+      else if (translated) { statusTd.textContent = '\u2705'; statusTd.title = ''; }
+      else { statusTd.textContent = '\u274c'; statusTd.title = ''; }
+    }
+    updateStats();
+  }
+
+  function onRowCheckbox(e) {
+    updateHeaderCheckbox();
+  }
+
+  function updateHeaderCheckbox() {
+    const cbs = tableBody.querySelectorAll('.row-checkbox:not(:disabled)');
+    const checked = tableBody.querySelectorAll('.row-checkbox:not(:disabled):checked');
+    headerCheckbox.checked = cbs.length > 0 && checked.length === cbs.length;
+    headerCheckbox.indeterminate = checked.length > 0 && checked.length < cbs.length;
+  }
+
+  headerCheckbox.addEventListener('change', () => {
+    const cbs = tableBody.querySelectorAll('.row-checkbox:not(:disabled)');
+    cbs.forEach(cb => cb.checked = headerCheckbox.checked);
+  });
+
+  document.getElementById('selectAllBtn').addEventListener('click', () => {
+    tableBody.querySelectorAll('.row-checkbox:not(:disabled)').forEach(cb => cb.checked = true);
+    updateHeaderCheckbox();
+  });
+
+  document.getElementById('deselectAllBtn').addEventListener('click', () => {
+    tableBody.querySelectorAll('.row-checkbox:not(:disabled)').forEach(cb => cb.checked = false);
+    updateHeaderCheckbox();
+  });
+
+  document.getElementById('copyOriginalBtn').addEventListener('click', () => {
+    const lines = app.strings
+      .filter(s => s.translatable)
+      .map(s => s.key + '=' + s.original);
+    navigator.clipboard.writeText(lines.join('\n')).then(() => showToast('Copied ' + lines.length + ' lines'));
+  });
+
+  function updateStats() {
+    const total = app.strings.length;
+    const translatable = app.strings.filter(s => s.translatable).length;
+    const translated = app.strings.filter(s => s.translatable && !!getTranslation(s)).length;
+    const errCount = getFormatErrorCount();
+    stats.innerHTML = '<span class="badge badge-total">' + total + ' total</span> ' +
+      '<span class="badge badge-done">' + translated + ' translated</span> ' +
+      '<span class="badge badge-missing">' + (translatable - translated) + ' remaining</span>' +
+      (errCount ? ' <span class="badge badge-error">' + errCount + ' format errors</span>' : '');
+    tabCount.textContent = total;
+  }
+
+  // --- Export ---
+  function buildXML(opts) {
+    opts = opts || {};
+    const skipLocked = opts.skipLocked !== false;
+    const skipUntranslated = opts.skipUntranslated !== false;
+    const indent = opts.indent !== false;
+    const preserveComments = opts.preserveComments !== false;
+
+    const lines = [];
+    lines.push(app.xmlProlog);
+    lines.push('<resources>');
+
+    const commentMap = {};
+    if (preserveComments) {
+      app.comments.forEach(c => {
+        commentMap[c.index] = c.text;
+      });
+    }
+
+    let outputIdx = 0;
+    const writeEntry = (line) => {
+      if (preserveComments && commentMap[outputIdx] !== undefined) {
+        lines.push((indent ? '  ' : '') + '<!-- ' + commentMap[outputIdx] + ' -->');
+      }
+      lines.push(line);
+      outputIdx++;
+    };
+
+    const skipAll = (s) => {
+      if (skipLocked && !s.translatable) return true;
+      if (s.translatable && skipUntranslated && !getTranslation(s)) return true;
+      return false;
+    };
+
+    app.strings.forEach(s => {
+      if (skipAll(s)) {
+        outputIdx++;
+        return;
+      }
+
+      if (s.type === 'string-array') {
+        const values = s.translatable ? s.itemTranslations : s.items;
+        const finalValues = values.map((v, i) => v.trim() || s.items[i]);
+        const attrs = ['name="' + escAttr(s.key) + '"'];
+        if (!s.translatable) attrs.push('translatable="false"');
+        writeEntry((indent ? '  ' : '') + '<string-array ' + attrs.join(' ') + '>');
+        finalValues.forEach(v => {
+          lines.push((indent ? '    ' : '  ') + '<item>' + escXml(v) + '</item>');
+        });
+        lines.push((indent ? '  ' : '') + '</string-array>');
+      } else {
+        const val = (s.translatable && s.translation.trim()) ? s.translation.trim() : s.original;
+        const attrs = ['name="' + escAttr(s.key) + '"'];
+        if (!s.translatable) attrs.push('translatable="false"');
+        writeEntry((indent ? '  ' : '') + '<string ' + attrs.join(' ') + '>' + escXml(val) + '</string>');
+      }
+    });
+
+    // trailing comments
+    if (preserveComments) {
+      const lastIdx = app.strings.length;
+      if (commentMap[lastIdx] !== undefined) {
+        lines.push((indent ? '  ' : '') + '<!-- ' + commentMap[lastIdx] + ' -->');
+      }
+    }
+
+    lines.push('</resources>');
+    return lines.join('\n');
+  }
+
+  function renderExport() {
+    if (!app.strings.length) {
+      exportOutput.textContent = 'No data to export.';
+      document.getElementById('exportWarning').classList.add('hidden');
+      return;
+    }
+    app.strings.forEach(s => recomputeFormatErrors(s));
+    const errCount = getFormatErrorCount();
+    const warnEl = document.getElementById('exportWarning');
+    const warnText = document.getElementById('exportWarningText');
+    if (errCount) {
+      warnEl.classList.remove('hidden');
+      warnText.textContent = errCount + ' string' + (errCount !== 1 ? 's' : '') + ' with format specifier mismatches will be exported.';
+    } else {
+      warnEl.classList.add('hidden');
+    }
+    const skipLocked = document.getElementById('optionSkipLocked').checked;
+    const skipUntranslated = document.getElementById('optionSkipUntranslated').checked;
+    const indent = document.getElementById('optionIndent').checked;
+    const preserveComments = document.getElementById('optionPreserveComments').checked;
+    const xml = buildXML({ skipLocked, skipUntranslated, indent, preserveComments });
+    exportOutput.textContent = xml;
+  }
+
+  document.getElementById('optionSkipLocked').addEventListener('change', renderExport);
+  document.getElementById('optionSkipUntranslated').addEventListener('change', renderExport);
+  document.getElementById('optionIndent').addEventListener('change', renderExport);
+  document.getElementById('optionPreserveComments').addEventListener('change', renderExport);
+
+  document.getElementById('exportAllBtn').addEventListener('click', () => {
+    document.getElementById('optionSkipLocked').checked = false;
+    document.getElementById('optionSkipUntranslated').checked = false;
+    renderExport();
+  });
+
+  document.getElementById('exportTranslatedOnlyBtn').addEventListener('click', () => {
+    document.getElementById('optionSkipLocked').checked = true;
+    document.getElementById('optionSkipUntranslated').checked = true;
+    renderExport();
+  });
+
+  document.getElementById('copyExportBtn').addEventListener('click', () => {
+    const text = exportOutput.textContent;
+    if (!text || text === 'No data to export.') { showToast('Nothing to copy'); return; }
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard'));
+  });
+
+  document.getElementById('downloadBtn').addEventListener('click', () => {
+    const text = exportOutput.textContent;
+    if (!text || text === 'No data to export.') { showToast('Nothing to download'); return; }
+    const blob = new Blob([text], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'strings.xml';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('exportWarningLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    app.filter = 'errors';
+    switchTab('translate');
+    filterBtns.forEach(b => b.classList.toggle('active', b.dataset.filter === 'errors'));
+    renderTable();
+  });
+
+  // --- Format Specifier Validation ---
+  const FORMAT_SPEC_RE = /%(?!\s)(?:(\d+)\$)?([-#+ 0,(]*)?(\d+)?(?:\.(\d+))?([tT])?([a-zA-Z])/g;
+
+  function parseFormatSpecifiers(str) {
+    if (!str) return { specs: [], map: {} };
+    FORMAT_SPEC_RE.lastIndex = 0;
+    const specs = [];
+    let match;
+    let implicitIdx = 0;
+    const explicitIndices = new Set();
+
+    while ((match = FORMAT_SPEC_RE.exec(str)) !== null) {
+      const argIdx = match[1];
+      const tPrefix = match[5] || '';
+      const conversion = match[6];
+
+      if (!tPrefix && conversion === 'n') continue;
+
+      let index;
+      if (argIdx !== undefined) {
+        index = parseInt(argIdx, 10);
+        explicitIndices.add(index);
+      } else {
+        implicitIdx++;
+        while (explicitIndices.has(implicitIdx)) implicitIdx++;
+        index = implicitIdx;
+      }
+
+      const fullConversion = tPrefix + conversion;
+      specs.push({ index, conversion: fullConversion });
+    }
+
+    const map = {};
+    specs.forEach(s => {
+      if (map[s.index] === undefined) map[s.index] = s.conversion;
+    });
+
+    return { specs, map };
+  }
+
+  function validateFormatSpecifiers(original, translation) {
+    const orig = parseFormatSpecifiers(original);
+    const trans = parseFormatSpecifiers(translation);
+    const errors = [];
+
+    Object.keys(orig.map).forEach(idx => {
+      if (trans.map[idx] === undefined) {
+        errors.push('Missing argument %' + idx + '$' + orig.map[idx]);
+      } else if (trans.map[idx] !== orig.map[idx]) {
+        errors.push('Argument %' + idx + '$: expected "' + orig.map[idx] + '", got "' + trans.map[idx] + '"');
+      }
+    });
+
+    Object.keys(trans.map).forEach(idx => {
+      if (orig.map[idx] === undefined) {
+        errors.push('Unexpected argument %' + idx + '$' + trans.map[idx]);
+      }
+    });
+
+    return { errors, origSpecs: orig.specs, transSpecs: trans.specs };
+  }
+
+  function getValidatedText(s) {
+    if (s.type === 'string-array') {
+      return s.itemTranslations.map((t, i) => t.trim() || s.items[i]).join(', ');
+    }
+    return s.translation || '';
+  }
+
+  function recomputeFormatErrors(s) {
+    if (!s.translatable) { s._formatErrors = []; s._hasErrors = false; return; }
+    if (s.type === 'string-array') {
+      const allErrors = [];
+      s.itemTranslations.forEach((t, i) => {
+        const val = t.trim();
+        if (!val) { allErrors.push({ errors: [] }); return; }
+        const result = validateFormatSpecifiers(s.items[i], val);
+        allErrors.push(result);
+      });
+      s._formatErrors = allErrors;
+      s._hasErrors = allErrors.some(e => e.errors && e.errors.length > 0);
+    } else {
+      if (!s.translation || !s.translation.trim()) {
+        s._formatErrors = []; s._hasErrors = false;
+        s._origSpecs = parseFormatSpecifiers(s.original).specs;
+        s._transSpecs = [];
+        return;
+      }
+      const result = validateFormatSpecifiers(s.original, s.translation);
+      s._formatErrors = result.errors;
+      s._hasErrors = result.errors.length > 0;
+      s._origSpecs = result.origSpecs;
+      s._transSpecs = result.transSpecs;
+    }
+  }
+
+  function getFormatErrorCount() {
+    return app.strings.filter(s => s.translatable && s._hasErrors).length;
+  }
+
+  // --- Utilities ---
+  function escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function escAttr(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function escXml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  }
+
+  updateStats();
+
+})();
+</script>
+
+</body>
+</html>
