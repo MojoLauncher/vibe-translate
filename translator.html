@@ -442,10 +442,6 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     return resp.text();
   }
 
-  function localeCodeFromName(name) {
-    return name.replace(/^values-/, '');
-  }
-
   function localeLabel(code) {
     return app.localeNames[code] || code;
   }
@@ -464,6 +460,15 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     localeSelectorArea.classList.remove('hidden');
   }
 
+  function isLocaleSuffix(s) {
+    if (/^b\+/.test(s)) return true;
+    if (/^v\d/.test(s)) return false;
+    if (/^(sw|w|h)\d/.test(s)) return false;
+    if (/^(anydpi|nodpi|tvdpi|[lmh]dpi|xhdpi|xxhdpi|xxxhdpi)$/.test(s)) return false;
+    if (/^(land|port|night|notnight|ldrtl|ldltr|car|desk|television|appliance|watch|vrheadset|round)$/.test(s)) return false;
+    return /^[a-z]{2,3}(-r[A-Z]{2})?$/.test(s);
+  }
+
   async function loadLocales() {
     setStep(stepLocales, localesIcon, localesStatus, 'active', 'Fetching available locales...');
     try {
@@ -471,9 +476,9 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
       const items = JSON.parse(json);
       const codes = [];
       items.forEach(item => {
-        if (item.type === 'dir' && /^values-/.test(item.name)) {
-          codes.push(localeCodeFromName(item.name));
-        }
+        if (item.type !== 'dir') return;
+        const m = item.name.match(/^values-(.+)/);
+        if (m && isLocaleSuffix(m[1])) codes.push(m[1]);
       });
       codes.sort();
       app.locales = codes;
