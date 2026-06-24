@@ -112,7 +112,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
 .import-step.error { border-color: #ffcdd2; background: #ffebee; }
 .import-step.active { border-color: #bbdefb; background: #e3f2fd; }
 
-.locale-row { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin-top: 12px; }
+.locale-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
 .locale-row label { font-size: 13px; font-weight: 600; color: #333; display: block; margin-bottom: 4px; }
 .locale-row select { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; min-width: 220px; background: #fff; }
 .locale-row select:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,.15); }
@@ -128,6 +128,18 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
   <h1>Android String Resource Translator</h1>
   <p class="subtitle">Parse, translate, and export <code>strings.xml</code> files</p>
 
+  <div id="authArea" class="card" style="padding:12px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;font-size:14px">
+    <div id="authLoggedOut">
+      <button class="btn btn-primary btn-sm" id="loginBtn">Sign in with GitHub</button>
+      <span style="color:#666;margin-left:6px">to submit translations to the repository</span>
+    </div>
+    <div id="authLoggedIn" class="hidden" style="display:flex;align-items:center">
+      <img id="userAvatar" src="" alt="" style="width:28px;height:28px;border-radius:50%">
+      <span id="userName" style="font-weight:600;margin-left:6px"></span>
+      <button class="btn btn-secondary btn-sm" id="logoutBtn" style="margin-left:6px">Sign Out</button>
+    </div>
+  </div>
+
   <div class="tab-bar">
     <button class="tab active" data-tab="input">Input</button>
     <button class="tab" data-tab="translate" id="translateTab">Translate <span id="tabCount" class="badge badge-total" style="margin-left:6px">0</span></button>
@@ -139,7 +151,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     <div class="card import-card">
       <h2>MojoLauncher String Resources</h2>
       <p class="repo-info">
-        Repository: <code>MojoLauncher/MojoLauncher</code> &mdash; branch <code>v3_openjdk</code>
+        Repository: <code>MojoLauncher/MojoLauncher</code>
       </p>
 
       <div id="stepSource" class="import-step">
@@ -208,25 +220,28 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
 
   <!-- EXPORT TAB -->
   <div class="tab-content hidden" id="tab-export">
-    <div class="card">
-      <div class="actions">
-        <button class="btn btn-success" id="exportAllBtn">Export All</button>
-        <button class="btn btn-success" id="exportTranslatedOnlyBtn">Export Translated Only</button>
-        <button class="btn btn-secondary" id="copyExportBtn">Copy to Clipboard</button>
-        <button class="btn btn-secondary" id="downloadBtn">Download</button>
-      </div>
-      <div class="checkbox-group" style="margin-bottom:12px">
-        <label><input type="checkbox" id="optionSkipLocked" checked> Skip locked (translatable="false")</label>
-        <label><input type="checkbox" id="optionSkipUntranslated" checked> Skip untranslated</label>
-        <label><input type="checkbox" id="optionIndent" checked> Indent output</label>
-        <label><input type="checkbox" id="optionPreserveComments" checked> Preserve comments</label>
-      </div>
+    <div class="card" id="submitCard">
+      <h3 style="font-size:16px;margin-bottom:4px">Submit to GitHub</h3>
+      <p style="font-size:13px;color:#666;margin-bottom:12px">
+        Submit your translations directly to <code>MojoLauncher/MojoLauncher</code>.
+      </p>
       <div id="exportWarning" class="export-warning hidden">
         <strong>⚠ Format specifier errors detected</strong> —
         <span id="exportWarningText"></span>
         <a href="#" id="exportWarningLink" style="color:inherit;font-weight:600">View errors</a>
       </div>
-      <pre id="exportOutput">No data to export.</pre>
+      <div class="locale-row">
+        <div>
+          <span style="font-size:13px;font-weight:600">Current locale:</span>
+          <span id="submitLocaleDisplay" style="font-size:14px;margin-left:6px">—</span>
+        </div>
+        <button class="btn btn-primary" id="submitBtn">Submit to GitHub</button>
+        <button class="btn btn-secondary btn-sm hidden" id="submittingBtn" disabled>
+          <span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid #ccc;border-top-color:#1976d2;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px"></span>
+          Submitting...
+        </button>
+      </div>
+      <div id="submitResult" style="margin-top:10px;font-size:13px"></div>
     </div>
   </div>
 </div>
@@ -258,7 +273,6 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
   const searchInput = document.getElementById('searchInput');
   const stats = document.getElementById('stats');
   const tabCount = document.getElementById('tabCount');
-  const exportOutput = document.getElementById('exportOutput');
 
   const tabs = document.querySelectorAll('.tab');
   const tabContents = {
@@ -976,65 +990,6 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     return lines.join('\n');
   }
 
-  function renderExport() {
-    if (!app.strings.length) {
-      exportOutput.textContent = 'No data to export.';
-      document.getElementById('exportWarning').classList.add('hidden');
-      return;
-    }
-    app.strings.forEach(s => recomputeFormatErrors(s));
-    const errCount = getFormatErrorCount();
-    const warnEl = document.getElementById('exportWarning');
-    const warnText = document.getElementById('exportWarningText');
-    if (errCount) {
-      warnEl.classList.remove('hidden');
-      warnText.textContent = errCount + ' string' + (errCount !== 1 ? 's' : '') + ' with format specifier mismatches will be exported.';
-    } else {
-      warnEl.classList.add('hidden');
-    }
-    const skipLocked = document.getElementById('optionSkipLocked').checked;
-    const skipUntranslated = document.getElementById('optionSkipUntranslated').checked;
-    const indent = document.getElementById('optionIndent').checked;
-    const preserveComments = document.getElementById('optionPreserveComments').checked;
-    const xml = buildXML({ skipLocked, skipUntranslated, indent, preserveComments });
-    exportOutput.textContent = xml;
-  }
-
-  document.getElementById('optionSkipLocked').addEventListener('change', renderExport);
-  document.getElementById('optionSkipUntranslated').addEventListener('change', renderExport);
-  document.getElementById('optionIndent').addEventListener('change', renderExport);
-  document.getElementById('optionPreserveComments').addEventListener('change', renderExport);
-
-  document.getElementById('exportAllBtn').addEventListener('click', () => {
-    document.getElementById('optionSkipLocked').checked = false;
-    document.getElementById('optionSkipUntranslated').checked = false;
-    renderExport();
-  });
-
-  document.getElementById('exportTranslatedOnlyBtn').addEventListener('click', () => {
-    document.getElementById('optionSkipLocked').checked = true;
-    document.getElementById('optionSkipUntranslated').checked = true;
-    renderExport();
-  });
-
-  document.getElementById('copyExportBtn').addEventListener('click', () => {
-    const text = exportOutput.textContent;
-    if (!text || text === 'No data to export.') { showToast('Nothing to copy'); return; }
-    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard'));
-  });
-
-  document.getElementById('downloadBtn').addEventListener('click', () => {
-    const text = exportOutput.textContent;
-    if (!text || text === 'No data to export.') { showToast('Nothing to download'); return; }
-    const blob = new Blob([text], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'strings.xml';
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-
   document.getElementById('exportWarningLink').addEventListener('click', (e) => {
     e.preventDefault();
     app.filter = 'errors';
@@ -1151,6 +1106,182 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     if (!s) return '';
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
   }
+
+  // --- GitHub Auth & Submit ---
+  const BACKEND_URL = '';
+  let csrfToken = null;
+
+  const authLoggedOut = document.getElementById('authLoggedOut');
+  const authLoggedIn = document.getElementById('authLoggedIn');
+  const userAvatar = document.getElementById('userAvatar');
+  const userName = document.getElementById('userName');
+  const loginBtn = document.getElementById('loginBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const submitBtn = document.getElementById('submitBtn');
+  const submittingBtn = document.getElementById('submittingBtn');
+  const submitResult = document.getElementById('submitResult');
+  const submitLocaleDisplay = document.getElementById('submitLocaleDisplay');
+  const submitCard = document.getElementById('submitCard');
+
+  async function apiFetch(path, opts) {
+    opts = opts || {};
+    if (csrfToken && opts.method && opts.method !== 'GET') {
+      opts.headers = opts.headers || {};
+      opts.headers['X-CSRF-Token'] = csrfToken;
+    }
+    if (opts.body && typeof opts.body === 'object') {
+      opts.headers = opts.headers || {};
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(opts.body);
+    }
+    const resp = await fetch(BACKEND_URL + path, opts);
+    if (resp.status === 403 && csrfToken) {
+      csrfToken = null;
+    }
+    return resp;
+  }
+
+  async function fetchCsrfToken() {
+    try {
+      const resp = await apiFetch('/api/csrf-token');
+      if (resp.ok) {
+        const data = await resp.json();
+        csrfToken = data.token;
+      }
+    } catch (_) {}
+  }
+
+  function showAuth(user) {
+    authLoggedOut.classList.add('hidden');
+    authLoggedIn.classList.remove('hidden');
+    userAvatar.src = user.avatar_url;
+    userName.textContent = user.name || user.login;
+  }
+
+  function hideAuth() {
+    authLoggedIn.classList.add('hidden');
+    authLoggedOut.classList.remove('hidden');
+  }
+
+  async function checkAuth() {
+    try {
+      const resp = await apiFetch('/api/me');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.authenticated) {
+          showAuth(data.user);
+          return true;
+        }
+      }
+    } catch (_) {}
+    hideAuth();
+    return false;
+  }
+
+  loginBtn.addEventListener('click', () => {
+    window.location.href = BACKEND_URL + '/auth/github?redirect=/translator.html';
+  });
+
+  logoutBtn.addEventListener('click', async () => {
+    if (!csrfToken) await fetchCsrfToken();
+    await apiFetch('/api/logout', { method: 'POST' });
+    csrfToken = null;
+    hideAuth();
+    showToast('Signed out');
+  });
+
+  function updateSubmitLocaleDisplay(hasFormatErrors) {
+    if (app.importedLocale) {
+      submitLocaleDisplay.textContent = localeLabel(app.importedLocale) + ' (' + app.importedLocale + ')';
+      submitBtn.disabled = hasFormatErrors;
+    } else {
+      submitLocaleDisplay.textContent = '—';
+      submitBtn.disabled = true;
+    }
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    const locale = app.importedLocale;
+    if (!locale) { showToast('No locale imported'); return; }
+
+    const translatableCount = app.strings.filter(s => s.translatable).length;
+    const translatedCount = app.strings.filter(s => s.translatable && !!getTranslation(s)).length;
+    if (translatedCount === 0) {
+      if (!confirm('No translations have been entered. Submit an empty file anyway?')) return;
+    }
+
+    const errCount = getFormatErrorCount();
+    if (errCount > 0) {
+      if (!confirm(errCount + ' string(s) have format specifier mismatches. Submit anyway?')) return;
+    }
+
+    const opts = {
+      skipLocked: true,
+      skipUntranslated: true,
+      indent: true,
+      preserveComments: true,
+    };
+    const xml = buildXML(opts);
+
+    if (!confirm(`Submit ${localeLabel(locale)} (${locale}) translations to GitHub?` +
+      `\n\nTranslated: ${translatedCount}/${translatableCount} strings` +
+      `\nOutput size: ~${Math.round(xml.length / 1024)} KB` +
+      `\n\nThis will create a new commit.`)) return;
+
+    submitBtn.classList.add('hidden');
+    submittingBtn.classList.remove('hidden');
+    submitResult.innerHTML = '';
+    submitResult.className = '';
+
+    try {
+      if (!csrfToken) await fetchCsrfToken();
+      const resp = await apiFetch('/api/submit', {
+        method: 'POST',
+        body: { locale, xml },
+      });
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        submitResult.innerHTML = '<div style="padding:10px 14px;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:4px">' +
+          '<strong style="color:#2e7d32">Submitted successfully!</strong>' +
+          '<div style="margin-top:6px;font-size:13px;color:#555">' +
+          'Commit: <a href="' + escAttr(data.commit.url) + '" target="_blank" rel="noopener">' + escHtml(data.commit.sha.substring(0, 7)) + '</a>' +
+          '<br>Message: ' + escHtml(data.commit.message) +
+          '</div></div>';
+        showToast('Translations submitted!');
+      } else {
+        throw new Error(data.error || 'Unknown error');
+      }
+    } catch (err) {
+      submitResult.innerHTML = '<div style="padding:10px 14px;background:#ffebee;border:1px solid #ffcdd2;border-radius:4px;color:#c62828">' +
+        '<strong>Submission failed:</strong> ' + escHtml(err.message) +
+        '</div>';
+    } finally {
+      submitBtn.classList.remove('hidden');
+      submittingBtn.classList.add('hidden');
+    }
+  });
+
+  function renderExport() {
+    app.strings.forEach(s => recomputeFormatErrors(s));
+    const errCount = getFormatErrorCount();
+    const warnEl = document.getElementById('exportWarning');
+    const warnText = document.getElementById('exportWarningText');
+    if (errCount) {
+      warnEl.classList.remove('hidden');
+      warnText.textContent = errCount + ' string' + (errCount !== 1 ? 's' : '') + ' with format specifier mismatches. Translation with modifier mismatches cannot be submitted.';
+    } else {
+      warnEl.classList.add('hidden');
+    }
+    updateSubmitLocaleDisplay(errCount != 0);
+  };
+
+  (async function initAuth() {
+    const authed = await checkAuth();
+    if (authed) {
+      await fetchCsrfToken();
+    }
+    updateSubmitLocaleDisplay(getFormatErrorCount() != 0);
+  })();
 
   updateStats();
 

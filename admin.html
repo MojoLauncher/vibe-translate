@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin &mdash; Translation Tool</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; padding: 20px; }
+.container { max-width: 900px; margin: 0 auto; }
+.hidden { display: none !important; }
+
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); padding: 20px; margin-bottom: 20px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+.btn-primary { background: #1976d2; color: #fff; }
+.btn-primary:hover { background: #1565c0; }
+.btn-secondary { background: #e0e0e0; color: #333; }
+.btn-secondary:hover { background: #bdbdbd; }
+.btn-danger { background: #d32f2f; color: #fff; }
+.btn-danger:hover { background: #b71c1c; }
+.btn-sm { padding: 4px 12px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-outline { background: transparent; border: 1px solid #ccc; color: #333; }
+.btn-outline:hover { background: #f5f5f5; }
+
+input, textarea { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-family: inherit; }
+input:focus, textarea:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,.15); }
+
+h1 { font-size: 24px; margin-bottom: 4px; }
+h3 { font-size: 16px; margin-bottom: 12px; }
+
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: #fafafa; border-bottom: 2px solid #e0e0e0; padding: 10px 12px; text-align: left; font-weight: 600; }
+tbody tr { border-bottom: 1px solid #eee; }
+tbody td { padding: 10px 12px; vertical-align: middle; }
+tbody td .avatar { width: 24px; height: 24px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }
+
+.empty-state { text-align: center; padding: 40px 20px; color: #999; }
+
+.search-area { display: flex; gap: 8px; margin-bottom: 12px; }
+.search-area input { flex: 1; }
+
+.user-result { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; border: 1px solid #eee; border-radius: 4px; margin-bottom: 4px; }
+.user-result:hover { background: #e3f2fd; border-color: #1976d2; }
+.user-result.selected { background: #e3f2fd; border-color: #1976d2; }
+.user-result img { width: 28px; height: 28px; border-radius: 50%; }
+.user-result .login { font-weight: 600; }
+.user-result .name { color: #666; font-size: 13px; }
+
+#overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #f5f5f5; display: flex; align-items: center; justify-content: center; z-index: 100; }
+#overlay .card { text-align: center; padding: 40px; max-width: 400px; }
+#overlay h2 { margin-bottom: 12px; }
+#overlay p { color: #666; margin-bottom: 20px; }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #323232; color: #fff; padding: 12px 24px; border-radius: 4px; font-size: 14px; z-index: 1000; opacity: 0; transition: opacity .3s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.toast.error { background: #c62828; }
+
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+
+#banReason { resize: vertical; min-height: 60px; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-empty { background: #eee; color: #999; }
+</style>
+</head>
+<body>
+
+<div id="overlay">
+  <div class="card">
+    <h2 id="overlayTitle">Admin Access</h2>
+    <p id="overlayText">Sign in to manage the translation system.</p>
+    <button class="btn btn-primary" id="overlayBtn">Sign in with GitHub</button>
+  </div>
+</div>
+
+<div class="container hidden" id="app">
+  <div class="header">
+    <div>
+      <h1>Admin Panel</h1>
+      <p style="color:#666;font-size:14px;margin-top:4px">Manage banned users</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="adminUser" style="font-size:13px;color:#666"></span>
+      <a href="/translator.html" class="btn btn-secondary btn-sm">Translator</a>
+      <button class="btn btn-secondary btn-sm" id="logoutBtn">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Ban a User</h3>
+    <div class="search-area">
+      <input type="text" id="searchInput" placeholder="Search GitHub users by username&hellip;" autocomplete="off">
+      <button class="btn btn-primary" id="searchBtn">Search</button>
+    </div>
+    <div id="searchResults"></div>
+    <div id="banForm" class="hidden">
+      <div class="form-group">
+        <label for="banReason">Reason for ban <span style="color:#999;font-weight:400">(optional)</span></label>
+        <textarea id="banReason" placeholder="e.g. Repeated submission of low-quality translations"></textarea>
+      </div>
+      <button class="btn btn-danger" id="banBtn">Ban User</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Banned Users</h3>
+    <div id="bannedList">
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Reason</th>
+            <th>Banned</th>
+            <th>By</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="bannedBody"></tbody>
+      </table>
+    </div>
+    <div id="bannedEmpty" class="empty-state hidden">
+      <p>No users are currently banned.</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  const BACKEND_URL = '';
+
+  let csrfToken = null;
+  let selectedUser = null;
+
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlayText = document.getElementById('overlayText');
+  const overlayBtn = document.getElementById('overlayBtn');
+  const app = document.getElementById('app');
+  const adminUser = document.getElementById('adminUser');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const searchInput = document.getElementById('searchInput');
+  const searchBtn = document.getElementById('searchBtn');
+  const searchResults = document.getElementById('searchResults');
+  const banForm = document.getElementById('banForm');
+  const banReason = document.getElementById('banReason');
+  const banBtn = document.getElementById('banBtn');
+  const bannedBody = document.getElementById('bannedBody');
+  const bannedEmpty = document.getElementById('bannedEmpty');
+  const toast = document.getElementById('toast');
+
+  function showToast(msg, isError) {
+    toast.textContent = msg;
+    toast.className = 'toast' + (isError ? ' error' : '') + ' show';
+    clearTimeout(toast._hide);
+    toast._hide = setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  function showOverlay(title, text, btnText, btnAction) {
+    overlay.classList.remove('hidden');
+    app.classList.add('hidden');
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayBtn.textContent = btnText;
+    overlayBtn.onclick = btnAction;
+  }
+
+  function hideOverlay() {
+    overlay.classList.add('hidden');
+    app.classList.remove('hidden');
+  }
+
+  async function apiFetch(path, opts) {
+    opts = opts || {};
+    if (csrfToken && opts.method && opts.method !== 'GET') {
+      opts.headers = opts.headers || {};
+      opts.headers['X-CSRF-Token'] = csrfToken;
+    }
+    if (opts.body && typeof opts.body === 'object') {
+      opts.headers = opts.headers || {};
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(opts.body);
+    }
+    const resp = await fetch(BACKEND_URL + path, opts);
+    if (resp.status === 403 && csrfToken) {
+      csrfToken = null;
+    }
+    return resp;
+  }
+
+  async function ensureCsrf() {
+    if (csrfToken) return;
+    const resp = await apiFetch('/api/csrf-token');
+    if (resp.ok) {
+      const data = await resp.json();
+      csrfToken = data.token;
+    }
+  }
+
+  async function init() {
+    const meResp = await apiFetch('/api/me');
+    if (!meResp.ok) {
+      showOverlay('Connection Error', 'Could not connect to the server.', 'Retry', () => location.reload());
+      return;
+    }
+    const me = await meResp.json();
+
+    if (!me.authenticated) {
+      showOverlay('Sign In Required', 'You must sign in with GitHub to access this page.', 'Sign in with GitHub', () => {
+        window.location.href = BACKEND_URL + '/auth/github?redirect=/admin.html';
+      });
+      return;
+    }
+
+    if (!me.isAdmin) {
+      showOverlay('Access Denied', 'You are signed in as <strong>' + escHtml(me.user.login) + '</strong>, but only the administrator can access this page.', 'Sign in as a different user', () => {
+        window.location.href = BACKEND_URL + '/auth/github?redirect=/admin.html';
+      });
+      return;
+    }
+
+    hideOverlay();
+    adminUser.textContent = 'Signed in as ' + me.user.login;
+    await ensureCsrf();
+    loadBanned();
+  }
+
+  function escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function escAttr(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  async function loadBanned() {
+    const resp = await apiFetch('/api/admin/banned');
+    if (!resp.ok) return showToast('Failed to load banned list', true);
+    const data = await resp.json();
+    renderBanned(data.banned);
+  }
+
+  function renderBanned(banned) {
+    bannedBody.innerHTML = '';
+    if (!banned.length) {
+      bannedEmpty.classList.remove('hidden');
+      return;
+    }
+    bannedEmpty.classList.add('hidden');
+    banned.forEach(b => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><strong>' + escHtml(b.login) + '</strong></td>' +
+        '<td>' + (b.reason ? escHtml(b.reason) : '<span class="badge badge-empty">no reason</span>') + '</td>' +
+        '<td style="white-space:nowrap">' + formatDate(b.bannedAt) + '</td>' +
+        '<td>' + escHtml(b.bannedBy) + '</td>' +
+        '<td><button class="btn btn-outline btn-sm unban-btn" data-login="' + escAttr(b.login) + '">Unban</button></td>';
+      bannedBody.appendChild(tr);
+    });
+
+    bannedBody.querySelectorAll('.unban-btn').forEach(btn => {
+      btn.addEventListener('click', () => unbanUser(btn.dataset.login));
+    });
+  }
+
+  function formatDate(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return iso || '—';
+    }
+  }
+
+  async function unbanUser(login) {
+    if (!confirm('Unban ' + login + '?')) return;
+    await ensureCsrf();
+    const resp = await apiFetch('/api/admin/banned/' + encodeURIComponent(login), { method: 'DELETE' });
+    if (resp.ok) {
+      showToast('Unbanned ' + login);
+      loadBanned();
+    } else {
+      const data = await resp.json();
+      showToast(data.error || 'Failed to unban', true);
+    }
+  }
+
+  // --- User search ---
+
+  let searchTimer = null;
+
+  function doSearch() {
+    const q = searchInput.value.trim();
+    if (q.length < 2) {
+      searchResults.innerHTML = '<div style="color:#999;font-size:13px;padding:8px 0">Enter at least 2 characters to search</div>';
+      clearSelected();
+      return;
+    }
+
+    searchResults.innerHTML = '<div style="color:#999;font-size:13px;padding:8px 0">Searching&hellip;</div>';
+    clearSelected();
+
+    apiFetch('/api/admin/lookup-user?q=' + encodeURIComponent(q))
+      .then(resp => resp.json())
+      .then(data => {
+        if (!data.users || !data.users.length) {
+          searchResults.innerHTML = '<div style="color:#999;font-size:13px;padding:8px 0">No users found</div>';
+          return;
+        }
+        searchResults.innerHTML = '';
+        data.users.forEach(u => {
+          const div = document.createElement('div');
+          div.className = 'user-result';
+          div.innerHTML =
+            '<img src="' + escAttr(u.avatar_url) + '" alt="" loading="lazy">' +
+            '<div><div class="login">' + escHtml(u.login) + '</div>' +
+            (u.name ? '<div class="name">' + escHtml(u.name) + '</div>' : '') +
+            '</div>';
+          div.addEventListener('click', () => selectUser(u));
+          searchResults.appendChild(div);
+        });
+      })
+      .catch(() => {
+        searchResults.innerHTML = '<div style="color:#c62828;font-size:13px;padding:8px 0">Search failed. Try again.</div>';
+      });
+  }
+
+  function clearSelected() {
+    selectedUser = null;
+    banForm.classList.add('hidden');
+    banReason.value = '';
+  }
+
+  function selectUser(u) {
+    searchResults.querySelectorAll('.user-result').forEach(el => el.classList.remove('selected'));
+    const items = searchResults.querySelectorAll('.user-result');
+    let found = false;
+    items.forEach(el => {
+      if (el.querySelector('.login').textContent === u.login) {
+        el.classList.add('selected');
+        el.scrollIntoView({ block: 'nearest' });
+        found = true;
+      }
+    });
+    selectedUser = u;
+    banForm.classList.remove('hidden');
+  }
+
+  searchBtn.addEventListener('click', doSearch);
+
+  searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      doSearch();
+    }
+  });
+
+  searchInput.addEventListener('input', () => {
+    clearSelected();
+    if (searchInput.value.trim().length < 2) {
+      searchResults.innerHTML = '';
+    }
+  });
+
+  // --- Ban ---
+
+  banBtn.addEventListener('click', async () => {
+    if (!selectedUser) return;
+    if (!confirm('Ban ' + selectedUser.login + ' from submitting translations?')) return;
+
+    await ensureCsrf();
+    const resp = await apiFetch('/api/admin/banned', {
+      method: 'POST',
+      body: { login: selectedUser.login, reason: banReason.value.trim() },
+    });
+
+    if (resp.ok) {
+      showToast('Banned ' + selectedUser.login);
+      searchInput.value = '';
+      searchResults.innerHTML = '';
+      clearSelected();
+      loadBanned();
+    } else {
+      const data = await resp.json();
+      showToast(data.error || 'Failed to ban user', true);
+    }
+  });
+
+  // --- Logout ---
+
+  logoutBtn.addEventListener('click', async () => {
+    await ensureCsrf();
+    await apiFetch('/api/logout', { method: 'POST' });
+    csrfToken = null;
+    location.reload();
+  });
+
+  init();
+})();
+</script>
+
+</body>
+</html>
