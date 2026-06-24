@@ -441,6 +441,33 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     return resp.text();
   }
 
+  const LANG_NAMES = {
+    'af': 'Afrikaans', 'am': 'Amharic', 'ar': 'Arabic', 'as': 'Assamese', 'az': 'Azerbaijani',
+    'be': 'Belarusian', 'bg': 'Bulgarian', 'bn': 'Bangla', 'bs': 'Bosnian', 'ca': 'Catalan',
+    'cs': 'Czech', 'da': 'Danish', 'de': 'German', 'el': 'Greek', 'en': 'English',
+    'es': 'Spanish', 'et': 'Estonian', 'eu': 'Basque', 'fa': 'Persian', 'fi': 'Finnish',
+    'fr': 'French', 'ga': 'Irish', 'gl': 'Galician', 'gu': 'Gujarati', 'he': 'Hebrew',
+    'hi': 'Hindi', 'hr': 'Croatian', 'hu': 'Hungarian', 'hy': 'Armenian', 'id': 'Indonesian',
+    'is': 'Icelandic', 'it': 'Italian', 'ja': 'Japanese', 'ka': 'Georgian', 'kk': 'Kazakh',
+    'km': 'Khmer', 'kn': 'Kannada', 'ko': 'Korean', 'ky': 'Kyrgyz', 'lo': 'Lao',
+    'lt': 'Lithuanian', 'lv': 'Latvian', 'mk': 'Macedonian', 'ml': 'Malayalam', 'mn': 'Mongolian',
+    'mr': 'Marathi', 'ms': 'Malay', 'my': 'Burmese', 'ne': 'Nepali', 'nl': 'Dutch',
+    'no': 'Norwegian', 'or': 'Odia', 'pa': 'Punjabi', 'pl': 'Polish', 'pt': 'Portuguese',
+    'ro': 'Romanian', 'ru': 'Russian', 'si': 'Sinhala', 'sk': 'Slovak', 'sl': 'Slovenian',
+    'sq': 'Albanian', 'sr': 'Serbian', 'sv': 'Swedish', 'sw': 'Swahili', 'ta': 'Tamil',
+    'te': 'Telugu', 'th': 'Thai', 'tl': 'Filipino', 'tr': 'Turkish', 'uk': 'Ukrainian',
+    'ur': 'Urdu', 'uz': 'Uzbek', 'vi': 'Vietnamese', 'zh': 'Chinese', 'zu': 'Zulu',
+  };
+
+  function getLanguageName(code) {
+    try {
+      const bcp47 = code.replace(/-r/gi, '-');
+      return new Intl.DisplayNames(['en'], { type: 'language', fallback: 'none' }).of(bcp47) || LANG_NAMES[code] || code;
+    } catch (_) {
+      return LANG_NAMES[code] || code;
+    }
+  }
+
   function localeLabel(code) {
     return app.localeNames[code] || code;
   }
@@ -481,6 +508,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
       });
       codes.sort();
       app.locales = codes;
+      codes.forEach(code => { app.localeNames[code] = getLanguageName(code); });
       populateLocaleSelect();
       setStep(stepLocales, localesIcon, localesStatus, 'done', 'Found ' + codes.length + ' locale' + (codes.length !== 1 ? 's' : ''));
     } catch (e) {
