@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Android String Resource Translator</title>
+<link rel="icon" type="image/png" href="./assets/icon.png">
+<link href='https://cdn.boxicons.com/fonts/basic/boxicons.min.css' rel='stylesheet'>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; padding: 20px; }
@@ -186,16 +188,16 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
         <button class="filter-btn" data-filter="errors">Format Errors</button>
       </div>
       <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="Search keys or values\u2026">
+        <input type="text" id="searchInput" placeholder="Search keys or values&#x2026;">
       </div>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th class="sortable" data-col="key">Key <span class="sort" id="sort-key">\u25b4</span></th>
-              <th class="sortable" data-col="original">Original <span class="sort" id="sort-original">\u25b4</span></th>
+              <th class="sortable" data-col="key">Key <span class="sort active" id="sort-key">&#9652;</span></th>
+              <th class="sortable" data-col="original">Original <span class="sort" id="sort-original">&#9662;</span></th>
               <th>Translation</th>
-              <th class="sortable" data-col="status">Status <span class="sort" id="sort-status">\u25b4</span></th>
+              <th class="sortable" data-col="status">Status <span class="sort" id="sort-status">&#9662;</span></th>
             </tr>
           </thead>
           <tbody id="tableBody">
@@ -625,7 +627,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => { 
+    reader.onload = (ev) => {
       const result = mergeTranslations(ev.target.result);
       showToast('Imported ' + result.matched + ' translation' + (result.matched !== 1 ? 's' : '') + ' from XML' + (result.skipped ? ' (' + result.skipped + ' skipped)' : '') );
       renderTable();
@@ -716,9 +718,17 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
   function updateSort(col) {
     if (app.sortCol === col) app.sortAsc = !app.sortAsc;
     else { app.sortCol = col; app.sortAsc = true; }
-    document.querySelectorAll('.sort').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.sort').forEach(s => {
+      s.classList.remove('active');
+      s.textContent = '\u25be';
+    });
+
     const el = document.getElementById('sort-' + col);
-    if (el) { el.classList.add('active'); el.textContent = app.sortAsc ? '\u25b4' : '\u25be'; }
+
+    if (el) {
+      el.classList.add('active');
+      el.textContent = app.sortAsc ? '\u25b4' : '\u25be';
+    }
     renderTable();
   }
 
@@ -731,9 +741,14 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     renderTable();
   }));
 
+  let searchInputTimeout = null;
   searchInput.addEventListener('input', () => {
-    app.search = searchInput.value;
-    renderTable();
+    clearTimeout(searchInputTimeout);
+
+    searchInputTimeout = setTimeout(() => {
+      app.search = searchInput.value;
+      renderTable();
+    }, 150);
   });
 
   // --- Render Table ---
@@ -750,10 +765,10 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
       const translated = s.translatable && !!getTranslation(s);
       const hasErrors = s.translatable && s._hasErrors;
       let status;
-      if (!s.translatable) status = '\ud83d\udd12';
-      else if (hasErrors) status = '\u26a0\ufe0f';
-      else if (translated) status = '\u2705';
-      else status = '\u274c';
+      if (!s.translatable) status = '<i class="bx bx-lock"></i>';
+      else if (hasErrors) status = '<i class="bx bx-alert-triangle"></i>';
+      else if (translated) status = '<i class="bx bx-check-circle"></i>';
+      else status = '<i class="bx bx-x" ></i>';
       const rowClass = (locked ? 'non-translatable' : '') + (hasErrors ? ' has-format-errors' : '');
       html += '<tr class="' + rowClass + '">';
       html += '<td class="key">' + escHtml(s.key) + (s.type === 'string-array' ? ' <span style="color:#999;font-size:10px">[]</span>' : '') + '</td>';
@@ -820,40 +835,44 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     el.style.height = el.scrollHeight + 'px';
   }
 
+  let translationInputTimeout;
   function onTranslateInput(e) {
-    const idx = parseInt(e.target.dataset.idx);
-    const s = app.strings[idx];
-    if (!s) return;
-    s.translation = e.target.value;
-    autoResize(e.target);
-    recomputeFormatErrors(s);
-    const hasErr = s._hasErrors;
-    const translated = !!s.translation;
-    e.target.style.borderColor = hasErr ? '#e65100' : translated ? '#43a047' : '#ccc';
-    e.target.style.background = hasErr ? '#fff3e0' : translated ? '#f1f8e9' : '';
-    const statusTd = e.target.closest('tr').querySelector('.status');
-    if (statusTd) {
-      if (hasErr) { statusTd.textContent = '\u26a0\ufe0f'; statusTd.title = 'Format specifier mismatch'; }
-      else if (translated) { statusTd.textContent = '\u2705'; statusTd.title = ''; }
-      else { statusTd.textContent = '\u274c'; statusTd.title = ''; }
-    }
-    const tr = e.target.closest('tr');
-    tr.classList.toggle('has-format-errors', hasErr);
-    const feDiv = document.getElementById('fe-' + idx);
-    if (hasErr) {
-      if (feDiv) feDiv.innerHTML = s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
-      else {
-        const div = document.createElement('div');
-        div.className = 'format-errors';
-        div.id = 'fe-' + idx;
-        div.innerHTML = s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
-        e.target.parentNode.appendChild(div);
+    clearTimeout(translationInputTimeout);
+    translationInputTimeout = setTimeout(() => {
+      const idx = parseInt(e.target.dataset.idx);
+      const s = app.strings[idx];
+      if (!s) return;
+      s.translation = e.target.value;
+      autoResize(e.target);
+      recomputeFormatErrors(s);
+      const hasErr = s._hasErrors;
+      const translated = !!s.translation;
+      e.target.style.borderColor = hasErr ? '#e65100' : translated ? '#43a047' : '#ccc';
+      e.target.style.background = hasErr ? '#fff3e0' : translated ? '#f1f8e9' : '';
+      const statusTd = e.target.closest('tr').querySelector('.status');
+      if (statusTd) {
+        if (hasErr) { statusTd.innerHTML = '<i class="bx bx-alert-triangle"></i>'; statusTd.title = 'Format specifier mismatch'; }
+        else if (translated) { statusTd.innerHTML = '<i class="bx bx-check-circle"></i>'; statusTd.title = ''; }
+        else { statusTd.innerHTML = '<i class="bx bx-x"></i>'; statusTd.title = ''; }
       }
-    } else {
-      if (feDiv) feDiv.remove();
-    }
-    scheduleSave();
-    updateStats();
+      const tr = e.target.closest('tr');
+      tr.classList.toggle('has-format-errors', hasErr);
+      const feDiv = document.getElementById('fe-' + idx);
+      if (hasErr) {
+        if (feDiv) feDiv.innerHTML = s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
+        else {
+          const div = document.createElement('div');
+          div.className = 'format-errors';
+          div.id = 'fe-' + idx;
+          div.innerHTML = s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
+          e.target.parentNode.appendChild(div);
+        }
+      } else {
+        if (feDiv) feDiv.remove();
+      }
+      scheduleSave();
+      updateStats();
+    }, 150)
   }
 
   function onItemInput(e) {
@@ -886,9 +905,9 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     const statusTd = tr.querySelector('.status');
     const translated = s.itemTranslations.some(t => t.trim());
     if (statusTd) {
-      if (anyErr) { statusTd.textContent = '\u26a0\ufe0f'; statusTd.title = 'Format specifier mismatch'; }
-      else if (translated) { statusTd.textContent = '\u2705'; statusTd.title = ''; }
-      else { statusTd.textContent = '\u274c'; statusTd.title = ''; }
+      if (anyErr) { statusTd.innerHTML = '<i class="bx bx-alert-triangle"></i>'; statusTd.title = 'Format specifier mismatch'; }
+      else if (translated) { statusTd.innerHTML = '<i class="bx bx-check-circle"></i>'; statusTd.title = ''; }
+      else { statusTd.innerHTML = '<i class="bx bx-x"></i>'; statusTd.title = ''; }
     }
     scheduleSave();
     updateStats();
