@@ -194,7 +194,7 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
         <table>
           <thead>
             <tr>
-              <th class="sortable" data-col="key">Key <span class="sort" id="sort-key">&#9652;</span></th>
+              <th class="sortable" data-col="key">Key <span class="sort active" id="sort-key">&#9652;</span></th>
               <th class="sortable" data-col="original">Original <span class="sort" id="sort-original">&#9662;</span></th>
               <th>Translation</th>
               <th class="sortable" data-col="status">Status <span class="sort" id="sort-status">&#9662;</span></th>
@@ -835,40 +835,44 @@ pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; backgroun
     el.style.height = el.scrollHeight + 'px';
   }
 
+  let translationInputTimeout;
   function onTranslateInput(e) {
-    const idx = parseInt(e.target.dataset.idx);
-    const s = app.strings[idx];
-    if (!s) return;
-    s.translation = e.target.value;
-    autoResize(e.target);
-    recomputeFormatErrors(s);
-    const hasErr = s._hasErrors;
-    const translated = !!s.translation;
-    e.target.style.borderColor = hasErr ? '#e65100' : translated ? '#43a047' : '#ccc';
-    e.target.style.background = hasErr ? '#fff3e0' : translated ? '#f1f8e9' : '';
-    const statusTd = e.target.closest('tr').querySelector('.status');
-    if (statusTd) {
-      if (hasErr) { statusTd.innerHTML = '<i class="bx bx-alert-triangle"></i>'; statusTd.title = 'Format specifier mismatch'; }
-      else if (translated) { statusTd.innerHTML = '<i class="bx bx-check-circle"></i>'; statusTd.title = ''; }
-      else { statusTd.innerHTML = '<i class="bx bx-x"></i>'; statusTd.title = ''; }
-    }
-    const tr = e.target.closest('tr');
-    tr.classList.toggle('has-format-errors', hasErr);
-    const feDiv = document.getElementById('fe-' + idx);
-    if (hasErr) {
-      if (feDiv) feDiv.innerHTML = s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
-      else {
-        const div = document.createElement('div');
-        div.className = 'format-errors';
-        div.id = 'fe-' + idx;
-        div.innerHTML = s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
-        e.target.parentNode.appendChild(div);
+    clearTimeout(translationInputTimeout);
+    translationInputTimeout = setTimeout(() => {
+      const idx = parseInt(e.target.dataset.idx);
+      const s = app.strings[idx];
+      if (!s) return;
+      s.translation = e.target.value;
+      autoResize(e.target);
+      recomputeFormatErrors(s);
+      const hasErr = s._hasErrors;
+      const translated = !!s.translation;
+      e.target.style.borderColor = hasErr ? '#e65100' : translated ? '#43a047' : '#ccc';
+      e.target.style.background = hasErr ? '#fff3e0' : translated ? '#f1f8e9' : '';
+      const statusTd = e.target.closest('tr').querySelector('.status');
+      if (statusTd) {
+        if (hasErr) { statusTd.innerHTML = '<i class="bx bx-alert-triangle"></i>'; statusTd.title = 'Format specifier mismatch'; }
+        else if (translated) { statusTd.innerHTML = '<i class="bx bx-check-circle"></i>'; statusTd.title = ''; }
+        else { statusTd.innerHTML = '<i class="bx bx-x"></i>'; statusTd.title = ''; }
       }
-    } else {
-      if (feDiv) feDiv.remove();
-    }
-    scheduleSave();
-    updateStats();
+      const tr = e.target.closest('tr');
+      tr.classList.toggle('has-format-errors', hasErr);
+      const feDiv = document.getElementById('fe-' + idx);
+      if (hasErr) {
+        if (feDiv) feDiv.innerHTML = s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
+        else {
+          const div = document.createElement('div');
+          div.className = 'format-errors';
+          div.id = 'fe-' + idx;
+          div.innerHTML = s._formatErrors.map(e => '<div>\u26a0 ' + escHtml(e) + '</div>').join('');
+          e.target.parentNode.appendChild(div);
+        }
+      } else {
+        if (feDiv) feDiv.remove();
+      }
+      scheduleSave();
+      updateStats();
+    }, 150)
   }
 
   function onItemInput(e) {
